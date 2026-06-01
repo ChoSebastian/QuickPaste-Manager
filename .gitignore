@@ -26,6 +26,10 @@ build/
 # Local export samples
 doc/*.zip
 
+# 제출·개인 자료 (저장소에 올리지 않음)
+제출용자료/
+제출용자료_*.zip
+
 # Logs and runtime data
 logs/
 backups/

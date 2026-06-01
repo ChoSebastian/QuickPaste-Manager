@@ -49,12 +49,6 @@ if ($sampleZip) {
     Write-Host "samples\HanbitSolutions_*.zip 없음 — generate_sample_import_zip.py 실행 권장" -ForegroundColor Yellow
 }
 
-# 제출용 폴더에 설치 파일 복사
-$submitDir = Join-Path $Root "제출용자료"
-if (Test-Path $submitDir) {
-    Copy-Item -Force $setup (Join-Path $submitDir $setupName)
-}
-
 Write-Host ""
 Write-Host "배포 산출물 (v$appVersion):" -ForegroundColor Green
 Write-Host "  설치: $setup ($([math]::Round((Get-Item $setup).Length / 1MB, 2)) MB)"
