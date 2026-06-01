@@ -13,7 +13,7 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 | 영역 | 설명 |
 |------|------|
 | 시스템 트레이 | 상주 실행, 팝업·관리·설정·종료 |
-| 전역 단축키 | `RegisterHotKey` (기본 `Ctrl+Shift+V`, 충돌 시 fallback) |
+| 전역 단축키 | `RegisterHotKey` (기본 `Ctrl+Shift+Q`, 충돌 시 fallback) |
 | 메인 팝업 | 검색, Top 5, 카테고리, 커서 인접·최상위·드래그 이동 |
 | Top 5 | 2줄 축약 목록 → 오버 시 우측 **전체 내용** 패널 |
 | 카테고리 | **클릭** 시 우측 상용구 목록 → 오버 시 하단 **전체 내용** |
@@ -21,22 +21,26 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 | 관리창 | 카테고리·상용구 CRUD, 휴지통, 클립보드/파일 이미지 추가 |
 | 데이터 | 로컬 SQLite + `%APPDATA%\QuickPasteManager` |
 
-### 구현 상태 (v2)
+### 구현 상태 (v3)
 
 | 기능 | 상태 |
 |------|------|
-| 전역 단축키 | ✅ |
+| 전역 단축키 (기본 `Ctrl+Shift+Q`) | ✅ |
 | 텍스트 붙여넣기 (Unicode+ANSI, SendInput) | ✅ |
 | 이미지 붙여넣기 | ✅ |
 | 붙여넣기 실패 시 팝업 유지 | ✅ |
+| 붙여넣기 후 팝업 닫기 (기본 **끔**) | ✅ |
 | 이미지 미지원 대상 경고 (메모장·Edit 등) | ✅ |
 | 팝업 UI (목업 QSS, 보조 패널) | ✅ |
 | 관리창 CRUD·휴지통 | ✅ |
-| 마우스 가운데 버튼 호출 | ✅ |
 | Import / Export (ZIP) | ✅ |
 | 자동 백업 (주기·보관 개수) | ✅ |
 | Windows 시작 시 실행 | ✅ |
-| 설치 패키지 (PyInstaller + Inno) | 🔶 `scripts\build_release.ps1` |
+| 단일 인스턴스 | ✅ |
+| 환경설정 (단축키 캡처·토글 UI) | ✅ |
+| 도움말 창 | ✅ |
+| 설치 패키지 (PyInstaller + Inno) | ✅ `installer\build_installer.ps1` |
+| 마우스 휠/가운데 버튼 호출 | ⬜ 코드만, 앱 미연결 |
 
 ---
 
@@ -133,10 +137,10 @@ QuickPaste Manager/
 │  ├─ utils/
 │  └─ resources/              # icons, popup.qss
 ├─ tests/
-├─ docs/                      # v2 기획·PRD·명세, UI 목업
-├─ doc/                       # v1 원본 기획
+├─ docs/                      # v3 기획·PRD·명세·Cursor 착수본, UI 목업
+├─ doc/                       # v1 원본 + v3 착수 링크
 ├─ scripts/
-└─ installer/                 # (예정)
+└─ installer/                 # PyInstaller spec, Inno Setup
 ```
 
 ---
@@ -180,34 +184,34 @@ git push origin main
 - 메모장 등 텍스트 전용 창에는 이미지 붙여넣기 불가 (사전 경고)
 - 붙여넣기 **실패 시** 팝업은 닫히지 않고 경고만 표시
 - 관리자 권한 프로세스 등 일부 앱에서는 SendInput이 차단될 수 있음
-- 팝업 하단 추가/수정/삭제/설정 버튼은 관리창 연동 전까지 비활성
+- 환경설정 창이 열려 있는 동안 전역 단축키로 팝업이 열리지 않음
 
 ---
 
 ## 문서
 
-### v2 (현재 구현 기준, 권장)
+### v3 (현행 구현 기준, 권장)
 
-- [기획서 v2](docs/기획서_v2.md)
-- [PRD v2](docs/prd_v2.md)
-- [기능명세서 v2](docs/기능명세서_v2.md)
+- [문서 인덱스](docs/INDEX.md)
+- [기획서 v3](docs/기획서_v3.md)
+- [PRD v3](docs/prd_v3.md)
+- [기능명세서 v3](docs/기능명세서_v3.md)
+- [Cursor 착수본 v3](docs/cursor_kickoff_v3.md) — AI 재구현용
 
 ### 참고
 
-- [아키텍처 개요](docs/architecture.md)
-- [UI 목업](docs/기본ui-1.png) · [플라이아웃 목업](docs/기본ui-2.png)
-- [호환성 테스트 계획](docs/compatibility-test-plan.md)
-- [릴리스 체크리스트](docs/release-checklist.md)
-- [PRD v1](docs/quickpaste-manager-prd.md) · [원본 기획](doc/02.%20quickpaste_manager_prd_final.md)
+- [아키텍처](docs/architecture.md)
+- [UI 목업](docs/기본ui-1.png) · [플라이아웃](docs/기본ui-2.png)
+- [배포](docs/deploy.md) · [릴리스 체크리스트](docs/release-checklist.md)
+- v2 스냅샷: `docs/*_v2.md` · v1: [doc/README.md](doc/README.md)
 
 ---
 
 ## 로드맵
 
-1. Import / Export ZIP
-2. 마우스 휠 클릭 호출
-3. 팝업 ↔ 관리창 단축 연동
-4. PyInstaller + Inno Setup 설치 패키지
+1. 팝업 크기 환경설정 UI
+2. 마우스 트리거 연동 여부 결정
+3. 대량 상용구 성능·호환성 테스트 확대
 
 ---
 

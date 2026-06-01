@@ -274,7 +274,17 @@ def import_package(conn: sqlite3.Connection, source: Path) -> ImportResult:
         if settings_file.exists():
             imported_settings = json.loads(settings_file.read_text(encoding="utf-8"))
             current = load_settings()
-            for key in ("hotkey", "popup_width", "popup_height", "popup_offset_px", "theme", "font_size"):
+            for key in (
+                "hotkey",
+                "popup_width",
+                "popup_height",
+                "popup_offset_px",
+                "startup_with_windows",
+                "close_popup_after_paste",
+                "restore_clipboard_after_paste",
+                "paste_delay_ms",
+                "auto_backup_interval_hours",
+            ):
                 if key in imported_settings:
                     current[key] = imported_settings[key]
             save_settings(current)

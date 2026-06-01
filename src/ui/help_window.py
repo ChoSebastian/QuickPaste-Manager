@@ -46,13 +46,11 @@ class HelpWindow(QMainWindow):
         *,
         hotkey: str,
         active_hotkey: str | None,
-        mouse_trigger_enabled: bool,
     ) -> None:
         self._browser.setHtml(
             build_help_html(
                 hotkey=hotkey,
                 active_hotkey=active_hotkey,
-                mouse_trigger_enabled=mouse_trigger_enabled,
             )
         )
         self._browser.moveCursor(QTextCursor.MoveOperation.Start)
@@ -62,12 +60,10 @@ class HelpWindow(QMainWindow):
         *,
         hotkey: str,
         active_hotkey: str | None,
-        mouse_trigger_enabled: bool,
     ) -> None:
         self.load_help(
             hotkey=hotkey,
             active_hotkey=active_hotkey,
-            mouse_trigger_enabled=mouse_trigger_enabled,
         )
         self.show()
         self.raise_()

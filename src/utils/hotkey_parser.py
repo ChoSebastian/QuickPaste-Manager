@@ -73,11 +73,74 @@ def _parse_key_vk(key: str) -> int:
     raise ValueError(f"지원하지 않는 키: {key}")
 
 
+_DISPLAY_MODIFIERS = frozenset({"Ctrl", "Shift", "Alt", "Win"})
+_MODIFIER_DISPLAY_ORDER = ("Ctrl", "Shift", "Alt", "Win")
+
+
+def _canonical_display_part(part: str) -> str:
+    normalized = _normalize_part(part)
+    alias = _MODIFIER_ALIASES.get(normalized)
+    if alias:
+        return {"control": "Ctrl", "shift": "Shift", "alt": "Alt", "win": "Win"}[alias]
+    if normalized in _SPECIAL_KEYS:
+        return part.strip().title() if part.strip() else normalized.title()
+    if normalized.startswith("f") and normalized[1:].isdigit():
+        return f"F{int(normalized[1:])}"
+    if len(part.strip()) == 1:
+        return part.strip().upper()
+    return part.strip()
+
+
+def format_hotkey(parts: list[str]) -> str:
+    """표시용 단축키 문자열."""
+    if not is_valid_hotkey_parts(parts):
+        raise ValueError("단축키는 2~3개 조합(수정키+키)이어야 합니다.")
+    return "+".join(_canonical_display_part(p) for p in parts)
+
+
+def is_valid_hotkey_parts(parts: list[str]) -> bool:
+    if len(parts) < 2 or len(parts) > 3:
+        return False
+    display = [_canonical_display_part(p) for p in parts]
+    mod_count = sum(1 for p in display if p in _DISPLAY_MODIFIERS)
+    if mod_count < 1:
+        return False
+    if display[-1] in _DISPLAY_MODIFIERS:
+        return False
+    try:
+        parse_hotkey("+".join(display))
+    except ValueError:
+        return False
+    return True
+
+
+def is_valid_hotkey_string(hotkey: str) -> bool:
+    parts = [p for p in hotkey.split("+") if p.strip()]
+    return is_valid_hotkey_parts(parts)
+
+
+def normalize_hotkey_string(hotkey: str) -> str:
+    """비교용 정규화 (대소문자·별칭·수정키 순서 통일)."""
+    parts = [p for p in hotkey.split("+") if p.strip()]
+    if not parts:
+        return ""
+    display = [_canonical_display_part(p) for p in parts]
+    mods = [m for m in _MODIFIER_DISPLAY_ORDER if m in display]
+    keys = [p for p in display if p not in _DISPLAY_MODIFIERS]
+    return "+".join(mods + keys)
+
+
+def hotkeys_equal(a: str, b: str) -> bool:
+    return normalize_hotkey_string(a) == normalize_hotkey_string(b)
+
+
 def parse_hotkey(hotkey: str) -> tuple[int, int]:
-    """'Ctrl+Shift+V' → (modifiers, virtual_key_code)."""
+    """'Ctrl+Shift+Q' → (modifiers, virtual_key_code)."""
     parts = [_normalize_part(p) for p in hotkey.split("+") if p.strip()]
     if len(parts) < 2:
         raise ValueError(f"단축키 형식이 올바르지 않습니다: {hotkey}")
+    if len(parts) > 3:
+        raise ValueError(f"단축키는 최대 3개 조합까지 가능합니다: {hotkey}")
 
     key_part = parts[-1]
     modifier_parts = parts[:-1]

@@ -15,15 +15,20 @@ from src.utils.config import (
 def test_default_settings_has_required_keys():
     settings = default_settings()
     assert "hotkey" in settings
-    assert settings["hotkey"] == "Ctrl+Shift+V"
+    assert settings["hotkey"] == "Ctrl+Shift+Q"
     assert "paste_delay_ms" in settings
+    assert "close_popup_after_paste" in settings
+    assert settings["close_popup_after_paste"] is False
+    assert settings["startup_with_windows"] is True
+    assert settings["restore_clipboard_after_paste"] is True
+    assert "theme" not in settings
 
 
 def test_merge_settings_fills_missing_keys(tmp_path):
     partial = {"hotkey": "Ctrl+Alt+V"}
     merged = merge_settings(partial)
     assert merged["hotkey"] == "Ctrl+Alt+V"
-    assert merged["theme"] == "system"
+    assert merged["startup_with_windows"] is True
 
 
 def test_load_and_save_settings_roundtrip(tmp_path, monkeypatch):

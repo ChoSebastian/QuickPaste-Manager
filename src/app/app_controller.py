@@ -17,15 +17,14 @@ from src.services.backup_service import create_backup_service
 from src.services.clipboard_service import create_clipboard_service
 from src.services.hotkey_service import create_hotkey_service
 from src.services.import_export_service import create_import_export_service
-from src.services.mouse_trigger_service import create_mouse_trigger_service
 from src.services.paste_service import create_paste_service
 from src.ui.help_window import HelpWindow
 from src.ui.manager_window import ManagerWindow
 from src.ui.popup_window import PopupWindow
 from src.ui.settings_window import SettingsWindow
-from src.utils.config import load_settings, save_settings
+from src.utils.config import DEFAULT_HOTKEY, load_settings, save_settings
 from src.utils.logger import setup_logging
-from src.utils.icons import ensure_tray_icon
+from src.utils.icons import load_app_icon
 from src.utils.paths import ensure_app_directories, get_resources_dir
 from src.utils.windows_startup import apply_startup_setting, is_startup_enabled
 
@@ -59,7 +58,6 @@ class AppController:
             ),
         )
         self._hotkey_service = create_hotkey_service(app)
-        self._mouse_service = create_mouse_trigger_service(app)
         self._import_export = create_import_export_service(self._conn)
         self._backup = create_backup_service()
         self._backup_scheduler = BackupScheduler(self._backup, parent=app)
@@ -93,8 +91,7 @@ class AppController:
 
     def _load_icon(self) -> QIcon:
         try:
-            path = ensure_tray_icon()
-            return QIcon(str(path))
+            return load_app_icon()
         except Exception as exc:
             logger.warning("트레이 아이콘 생성 실패: %s", exc)
             icon_dir = get_resources_dir() / "icons"
@@ -105,7 +102,7 @@ class AppController:
             return QIcon()
 
     def _register_triggers(self) -> None:
-        primary = str(self._settings.get("hotkey", "Ctrl+Shift+V"))
+        primary = str(self._settings.get("hotkey", DEFAULT_HOTKEY))
         candidates = [primary, *(hk for hk in FALLBACK_HOTKEYS if hk != primary)]
 
         registered = False
@@ -129,25 +126,14 @@ class AppController:
                 "트레이 메뉴에서 팝업을 열거나 환경설정에서 단축키를 변경하세요.",
             )
 
-        self._configure_mouse_trigger()
-
     def _sync_windows_startup(self) -> None:
         enabled = bool(self._settings.get("startup_with_windows", False))
         ok, msg = apply_startup_setting(enabled)
         if not ok and msg:
             logger.warning("시작 프로그램 동기화 실패: %s", msg)
 
-    def _configure_mouse_trigger(self) -> None:
-        enabled = bool(self._settings.get("mouse_wheel_trigger_enabled", False))
-        if not enabled:
-            self._mouse_service.stop()
-            return
-        if not self._mouse_service.start(self.open_popup):
-            logger.warning("마우스 가운데 버튼 트리거 등록 실패")
-
     def _reregister_triggers(self) -> None:
         self._hotkey_service.unregister()
-        self._mouse_service.stop()
         self._register_triggers()
 
     def start(self) -> None:
@@ -165,11 +151,19 @@ class AppController:
                 on_help=self.show_help,
                 on_open_manager=self.open_manager,
                 on_open_settings=self.open_settings,
+                close_popup_after_paste=lambda: bool(
+                    self._settings.get("close_popup_after_paste", False)
+                ),
             )
             self._popup.refresh()
         return self._popup
 
     def open_popup(self) -> None:
+        if (
+            self._settings_window is not None
+            and self._settings_window.isVisible()
+        ):
+            return
         try:
             popup = self._ensure_popup()
             popup.show_near_cursor(
@@ -203,7 +197,10 @@ class AppController:
             self._settings_window = SettingsWindow(
                 self._settings,
                 on_save=self._save_settings,
+                hotkey_probe_fn=self._hotkey_service.probe_available,
+                on_close=self._on_settings_closed,
             )
+        self._hotkey_service.set_suppressed(True)
         self._settings_window.load_settings(
             self._settings,
             hotkey_active=self._hotkey_service.active_hotkey,
@@ -212,6 +209,9 @@ class AppController:
         self._settings_window.show()
         self._settings_window.raise_()
         self._settings_window.activateWindow()
+
+    def _on_settings_closed(self) -> None:
+        self._hotkey_service.set_suppressed(False)
 
     def _save_settings(self, new_settings: dict) -> None:
         self._settings = new_settings
@@ -281,18 +281,14 @@ class AppController:
         if self._help_window is None:
             self._help_window = HelpWindow()
         self._help_window.show_help(
-            hotkey=str(self._settings.get("hotkey", "Ctrl+Shift+V")),
+            hotkey=str(self._settings.get("hotkey", DEFAULT_HOTKEY)),
             active_hotkey=self._hotkey_service.active_hotkey,
-            mouse_trigger_enabled=bool(
-                self._settings.get("mouse_wheel_trigger_enabled", False)
-            ),
         )
 
     def quit(self) -> None:
         logger.info("앱 종료")
         self._backup_scheduler.stop()
         self._hotkey_service.unregister()
-        self._mouse_service.stop()
         self._conn.close()
         self._app.quit()
 

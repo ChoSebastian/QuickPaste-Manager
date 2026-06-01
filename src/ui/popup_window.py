@@ -57,6 +57,7 @@ class PopupWindow(QWidget):
         on_help: Callable[[], None] | None = None,
         on_open_manager: Callable[[], None] | None = None,
         on_open_settings: Callable[[], None] | None = None,
+        close_popup_after_paste: Callable[[], bool] | None = None,
     ) -> None:
         flags = popup_window_flags()
         super().__init__(None, flags)
@@ -67,6 +68,7 @@ class PopupWindow(QWidget):
         self._on_help = on_help
         self._on_open_manager = on_open_manager
         self._on_open_settings = on_open_settings
+        self._close_popup_after_paste = close_popup_after_paste or (lambda: True)
         self._selected_category_id: int | None = None
         self._target_hwnd: int | None = None
         self._pasting = False
@@ -299,6 +301,7 @@ class PopupWindow(QWidget):
             event.type() == QEvent.Type.WindowDeactivate
             and self.isVisible()
             and not self._pasting
+            and self._close_popup_after_paste()
         ):
             QTimer.singleShot(150, self._close_if_focus_lost)
         return super().event(event)
@@ -320,6 +323,8 @@ class PopupWindow(QWidget):
         return False
 
     def _close_if_focus_lost(self) -> None:
+        if not self._close_popup_after_paste():
+            return
         if not self.isVisible():
             return
         pos = QCursor.pos()
@@ -452,7 +457,13 @@ class PopupWindow(QWidget):
             if ok:
                 self._hide_category_flyout()
                 self._reset_top_detail()
-                self._close_popup()
+                if self._close_popup_after_paste():
+                    self._close_popup()
+                else:
+                    self._target_hwnd = capture_foreground_window()
+                    hwnd = int(self.winId())
+                    if hwnd:
+                        raise_window_topmost(hwnd)
 
         QTimer.singleShot(30, _paste_then_close)
 

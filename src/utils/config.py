@@ -9,18 +9,19 @@ from typing import Any
 
 from src.utils.paths import ensure_app_directories, get_settings_path
 
+DEFAULT_HOTKEY = "Ctrl+Shift+Q"
+
 DEFAULT_SETTINGS: dict[str, Any] = {
     "version": 1,
-    "hotkey": "Ctrl+Shift+V",
-    "mouse_wheel_trigger_enabled": False,
-    "startup_with_windows": False,
+    "hotkey": DEFAULT_HOTKEY,
+    "mouse_wheel_trigger_enabled": False,  # deprecated, unused
+    "startup_with_windows": True,
     "popup_offset_px": 12,
     "popup_width": 360,
     "popup_height": 520,
-    "theme": "system",
-    "font_size": 10,
     "paste_delay_ms": 50,
     "restore_clipboard_after_paste": True,
+    "close_popup_after_paste": False,
     "image_paste_mode": "clipboard",
     "auto_backup_interval_hours": 24,
     "auto_backup_keep_count": 10,
