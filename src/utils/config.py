@@ -23,6 +23,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "restore_clipboard_after_paste": True,
     "image_paste_mode": "clipboard",
     "auto_backup_interval_hours": 24,
+    "auto_backup_keep_count": 10,
     "seed_default_categories": True,
     "seed_sample_snippets": False,
 }

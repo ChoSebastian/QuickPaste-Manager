@@ -1,21 +1,33 @@
-; QuickPaste Manager — Inno Setup 스크립트 (TODO)
-; Phase 7에서 PyInstaller 빌드 산출물과 연동
+; QuickPaste Manager — Inno Setup (dist\QuickPasteManager 연동)
+
+#define MyAppName "QuickPaste Manager"
+#define MyAppVersion "0.2.0"
+#define MyAppPublisher "QuickPaste"
+#define MyAppExeName "QuickPasteManager.exe"
+#define BuildDir "..\dist\QuickPasteManager"
 
 [Setup]
-AppName=QuickPaste Manager
-AppVersion=0.1.0
-DefaultDirName={autopf}\QuickPaste Manager
-DefaultGroupName=QuickPaste Manager
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
 OutputDir=..\dist
-OutputBaseFilename=QuickPasteManager-Setup
+OutputBaseFilename=QuickPasteManager-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
+ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
-; TODO: dist\QuickPasteManager\* 파일 추가
+Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; TODO: 시작 메뉴 / 트레이 바로가기
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "바탕 화면 바로 가기 만들기"; GroupDescription: "추가 작업:"
 
 [Run]
-; TODO: 설치 후 실행 옵션
+Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: nowait postinstall skipifsilent

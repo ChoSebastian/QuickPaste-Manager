@@ -61,12 +61,16 @@ class SettingsWindow(QMainWindow):
         self._hotkey_status = QLabel("")
         self._hotkey_status.setWordWrap(True)
         self._hotkey_status.setStyleSheet("color: #666;")
-        self._mouse_wheel = QCheckBox("마우스 휠 클릭으로 호출 (미구현 — 저장만 됨)")
+        self._mouse_wheel = QCheckBox("마우스 가운데 버튼(휠 클릭)으로 팝업 호출")
         self._startup = QCheckBox("Windows 시작 시 실행")
+        self._startup_status = QLabel("")
+        self._startup_status.setWordWrap(True)
+        self._startup_status.setStyleSheet("color: #666;")
         trigger_form.addRow("호출 단축키", self._hotkey_edit)
         trigger_form.addRow("등록 상태", self._hotkey_status)
         trigger_form.addRow("", self._mouse_wheel)
         trigger_form.addRow("", self._startup)
+        trigger_form.addRow("", self._startup_status)
         tabs.addTab(trigger, "호출 방식")
 
         # 붙여넣기
@@ -117,6 +121,7 @@ class SettingsWindow(QMainWindow):
         settings: dict,
         *,
         hotkey_active: str | None = None,
+        startup_active: bool | None = None,
     ) -> None:
         self._settings = dict(settings)
         self._theme_edit.setText(str(settings.get("theme", "system")))
@@ -136,7 +141,23 @@ class SettingsWindow(QMainWindow):
                 "❌ 전역 단축키 미등록 — 다른 앱 충돌 또는 이전 프로세스 잔존 가능"
             )
         self._mouse_wheel.setChecked(bool(settings.get("mouse_wheel_trigger_enabled", False)))
-        self._startup.setChecked(bool(settings.get("startup_with_windows", False)))
+        wants_startup = bool(settings.get("startup_with_windows", False))
+        self._startup.setChecked(wants_startup)
+        if startup_active is None:
+            self._startup_status.setText("")
+        elif startup_active:
+            self._startup_status.setText("✅ 시작 프로그램에 등록되어 있습니다.")
+            if not wants_startup:
+                self._startup_status.setText(
+                    "⚠ 시작 프로그램에는 등록되어 있으나 설정은 꺼져 있습니다. "
+                    "저장하면 해제됩니다."
+                )
+        else:
+            self._startup_status.setText("시작 프로그램 미등록")
+            if wants_startup:
+                self._startup_status.setText(
+                    "⚠ 설정은 켜져 있으나 아직 등록되지 않았습니다. 저장하면 등록됩니다."
+                )
         self._paste_delay.setValue(int(settings.get("paste_delay_ms", 50)))
         self._restore_clipboard.setChecked(bool(settings.get("restore_clipboard_after_paste", True)))
         self._backup_interval.setValue(int(settings.get("auto_backup_interval_hours", 24)))

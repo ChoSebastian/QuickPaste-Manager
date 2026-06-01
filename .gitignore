@@ -21,6 +21,10 @@ env/
 dist/
 build/
 *.spec
+!installer/quickpaste.spec
+
+# Local export samples
+doc/*.zip
 
 # Logs and runtime data
 logs/

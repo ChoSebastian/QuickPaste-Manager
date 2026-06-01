@@ -55,6 +55,8 @@ class PopupWindow(QWidget):
         *,
         on_close: Callable[[], None] | None = None,
         on_help: Callable[[], None] | None = None,
+        on_open_manager: Callable[[], None] | None = None,
+        on_open_settings: Callable[[], None] | None = None,
     ) -> None:
         flags = popup_window_flags()
         super().__init__(None, flags)
@@ -63,6 +65,8 @@ class PopupWindow(QWidget):
         self._paste_service = paste_service
         self._on_close = on_close
         self._on_help = on_help
+        self._on_open_manager = on_open_manager
+        self._on_open_settings = on_open_settings
         self._selected_category_id: int | None = None
         self._target_hwnd: int | None = None
         self._pasting = False
@@ -129,16 +133,22 @@ class PopupWindow(QWidget):
 
         actions = QHBoxLayout()
         actions.setSpacing(6)
-        for label, enabled in (
-            ("추가", False),
-            ("수정", False),
-            ("삭제", False),
-            ("설정", False),
+        self._btn_add = QPushButton("추가")
+        self._btn_edit = QPushButton("수정")
+        self._btn_delete = QPushButton("삭제")
+        self._btn_settings = QPushButton("설정")
+        for btn in (
+            self._btn_add,
+            self._btn_edit,
+            self._btn_delete,
+            self._btn_settings,
         ):
-            btn = QPushButton(label)
             btn.setObjectName("ActionBtn")
-            btn.setEnabled(enabled)
             actions.addWidget(btn)
+        self._btn_add.clicked.connect(self._on_action_manager)
+        self._btn_edit.clicked.connect(self._on_action_manager)
+        self._btn_delete.clicked.connect(self._on_action_manager)
+        self._btn_settings.clicked.connect(self._on_action_settings)
         body.addLayout(actions)
 
         layout.addLayout(body)
@@ -172,13 +182,6 @@ class PopupWindow(QWidget):
     def _show_help(self) -> None:
         if self._on_help:
             self._on_help()
-        else:
-            QMessageBox.information(
-                self,
-                "도움말",
-                "Top 5 항목에 마우스를 올리면 오른쪽에 전체 내용이 표시됩니다.\n"
-                "카테고리를 클릭하면 상용구 목록이 열리고, 항목 클릭 시 붙여넣습니다.",
-            )
 
     def refresh(self) -> None:
         self._load_top5()
@@ -268,6 +271,20 @@ class PopupWindow(QWidget):
             return
         self._top_detail.reset()
         self._top_list.clearSelection()
+
+    def _on_action_manager(self) -> None:
+        self._hide_category_flyout()
+        self._reset_top_detail()
+        self.hide()
+        if self._on_open_manager:
+            self._on_open_manager()
+
+    def _on_action_settings(self) -> None:
+        self._hide_category_flyout()
+        self._reset_top_detail()
+        self.hide()
+        if self._on_open_settings:
+            self._on_open_settings()
 
     def _hide_category_flyout(self) -> None:
         if self._flyout is not None:
