@@ -95,7 +95,7 @@ python -m src.main
 ```powershell
 # 최초: winget install JRSoftware.InnoSetup  (또는 installer\build_installer.ps1 안내 참고)
 .\installer\build_installer.ps1
-# 산출물: dist\QuickPasteManager-Setup-0.2.0.exe
+# 산출물: dist\QuickPasteManager-Setup-0.2.2.exe
 ```
 
 포터블 실행만 필요하면 `.\scripts\build_release.ps1` → `dist\QuickPasteManager\`

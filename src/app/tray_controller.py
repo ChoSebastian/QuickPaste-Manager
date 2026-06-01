@@ -8,6 +8,8 @@ from collections.abc import Callable
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
+from src.version import APP_VERSION
+
 logger = logging.getLogger("quickpaste.tray")
 
 
@@ -33,7 +35,7 @@ class TrayController:
         self._on_quit = on_quit
 
         self._tray = QSystemTrayIcon(icon or QIcon())
-        self._tray.setToolTip("QuickPaste Manager")
+        self._tray.setToolTip(f"QuickPaste Manager v{APP_VERSION}")
         self._tray.setContextMenu(self._build_menu())
 
     def _build_menu(self) -> QMenu:

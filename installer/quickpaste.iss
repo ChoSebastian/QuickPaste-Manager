@@ -1,7 +1,7 @@
 ; QuickPaste Manager — Inno Setup (dist\QuickPasteManager 연동)
 
 #define MyAppName "QuickPaste Manager"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.2.2"
 #define MyAppPublisher "QuickPaste"
 #define MyAppExeName "QuickPasteManager.exe"
 #define BuildDir "..\dist\QuickPasteManager"

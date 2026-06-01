@@ -9,12 +9,14 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from src.app.app_controller import AppController
 from src.utils.icons import load_app_icon
 from src.utils.single_instance import SingleInstanceGuard
+from src.version import APP_VERSION
 
 
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("QuickPaste Manager")
+    app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName("QuickPaste")
     try:
         app.setWindowIcon(load_app_icon())
