@@ -1,19 +1,21 @@
-"""QuickPaste 팝업 창 뼈대."""
+"""QuickPaste 팝업 창 — docs/기본ui-1.png, 기본ui-2.png 레이아웃."""
 
 from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -22,6 +24,27 @@ from PySide6.QtWidgets import (
 from src.models.snippet import Snippet
 from src.repositories import category_repository, snippet_repository
 from src.services.paste_service import PasteService
+from src.ui.widgets.snippet_list_item import (
+    LIST_SUMMARY_PREVIEW_LEN,
+    SNIPPET_THUMB_PX,
+    configure_snippet_list,
+    make_snippet_list_item,
+)
+from src.ui.widgets.draggable_title_bar import DraggableTitleBar
+from src.ui.widgets.hover_zone import LEAVE_CHECK_MS, cursor_in_any, widget_global_rect
+from src.ui.widgets.snippet_detail_flyout import SnippetDetailFlyout
+from src.ui.widgets.snippet_flyout import SnippetFlyout
+from src.ui.popup_flags import popup_window_flags
+from src.utils.input_injection import capture_foreground_window
+from src.utils.paths import get_resources_dir
+from src.utils.win_window import raise_window_topmost
+
+
+def _load_popup_stylesheet() -> str:
+    path = get_resources_dir() / "styles" / "popup.qss"
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return ""
 
 
 class PopupWindow(QWidget):
@@ -31,156 +54,392 @@ class PopupWindow(QWidget):
         paste_service: PasteService,
         *,
         on_close: Callable[[], None] | None = None,
+        on_help: Callable[[], None] | None = None,
     ) -> None:
-        super().__init__(flags=Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        flags = popup_window_flags()
+        super().__init__(None, flags)
+        self.setObjectName("PopupRoot")
         self._conn = conn
         self._paste_service = paste_service
         self._on_close = on_close
+        self._on_help = on_help
         self._selected_category_id: int | None = None
+        self._target_hwnd: int | None = None
+        self._pasting = False
+        self._panel_width = 300
+        self._panel_height = 480
 
-        self.setWindowTitle("QuickPaste")
+        sheet = _load_popup_stylesheet()
+        if sheet:
+            self.setStyleSheet(sheet)
+
+        self._flyout: SnippetFlyout | None = None
+        self._top_detail: SnippetDetailFlyout | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._title_bar = DraggableTitleBar(
+            title="QuickPaste",
+            on_close=self._close_popup,
+            on_help=self._show_help,
+        )
+        layout.addWidget(self._title_bar)
+
+        body = QVBoxLayout()
+        body.setContentsMargins(8, 8, 8, 8)
+        body.setSpacing(6)
 
         self._search = QLineEdit()
-        self._search.setPlaceholderText("검색...")
+        self._search.setObjectName("SearchEdit")
+        self._search.setPlaceholderText("검색")
         self._search.textChanged.connect(self._on_search_changed)
-        layout.addWidget(self._search)
+        body.addWidget(self._search)
 
         top_label = QLabel("Top 5")
-        top_label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(top_label)
+        top_label.setObjectName("SectionTitle")
+        body.addWidget(top_label)
         self._top_list = QListWidget()
-        self._top_list.setMaximumHeight(100)
-        self._top_list.itemDoubleClicked.connect(self._on_item_selected)
-        layout.addWidget(self._top_list)
+        self._top_list.setObjectName("TopList")
+        self._top_list.setMaximumHeight(110)
+        configure_snippet_list(self._top_list)
+        self._top_list.setMouseTracking(True)
+        self._top_list.viewport().setMouseTracking(True)
+        self._top_list.itemClicked.connect(self._on_top_item_selected)
+        self._top_list.itemEntered.connect(self._on_top_item_entered)
+        self._top_list.viewport().installEventFilter(self)
+        body.addWidget(self._top_list)
 
         cat_label = QLabel("카테고리")
-        cat_label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(cat_label)
+        cat_label.setObjectName("SectionTitle")
+        body.addWidget(cat_label)
         self._category_list = QListWidget()
-        self._category_list.setMaximumHeight(80)
-        self._category_list.currentItemChanged.connect(self._on_category_changed)
-        layout.addWidget(self._category_list)
-
-        snippet_label = QLabel("상용구")
-        snippet_label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(snippet_label)
-        self._snippet_list = QListWidget()
-        self._snippet_list.itemDoubleClicked.connect(self._on_item_selected)
-        layout.addWidget(self._snippet_list)
-
-        actions = QHBoxLayout()
-        for label in ("추가", "수정", "삭제", "설정"):
-            btn = QPushButton(label)
-            btn.setEnabled(False)  # TODO: 팝업 내 빠른 액션
-            actions.addWidget(btn)
-        layout.addLayout(actions)
+        self._category_list.setObjectName("CategoryList")
+        self._category_list.setMaximumHeight(120)
+        self._category_list.itemClicked.connect(self._on_category_clicked)
+        body.addWidget(self._category_list)
 
         line = QFrame()
+        line.setObjectName("SectionLine")
         line.setFrameShape(QFrame.Shape.HLine)
-        layout.addWidget(line)
+        body.addWidget(line)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        for label, enabled in (
+            ("추가", False),
+            ("수정", False),
+            ("삭제", False),
+            ("설정", False),
+        ):
+            btn = QPushButton(label)
+            btn.setObjectName("ActionBtn")
+            btn.setEnabled(enabled)
+            actions.addWidget(btn)
+        body.addLayout(actions)
+
+        layout.addLayout(body)
+
+    def _ensure_top_detail(self) -> SnippetDetailFlyout:
+        if self._top_detail is None:
+            self._top_detail = SnippetDetailFlyout(
+                self._conn,
+                on_close=self._reset_top_detail,
+            )
+            sheet = _load_popup_stylesheet()
+            if sheet:
+                self._top_detail.setStyleSheet(sheet)
+            self._top_detail.installEventFilter(self)
+        return self._top_detail
+
+    def _ensure_flyout(self) -> SnippetFlyout:
+        if self._flyout is None:
+            self._flyout = SnippetFlyout(
+                self._conn,
+                on_select=self._paste_snippet,
+                main_popup=self,
+                on_dismissed=self._on_category_flyout_dismissed,
+                on_close=self._hide_category_flyout,
+            )
+            sheet = _load_popup_stylesheet()
+            if sheet:
+                self._flyout.setStyleSheet(sheet)
+        return self._flyout
+
+    def _show_help(self) -> None:
+        if self._on_help:
+            self._on_help()
+        else:
+            QMessageBox.information(
+                self,
+                "도움말",
+                "Top 5 항목에 마우스를 올리면 오른쪽에 전체 내용이 표시됩니다.\n"
+                "카테고리를 클릭하면 상용구 목록이 열리고, 항목 클릭 시 붙여넣습니다.",
+            )
 
     def refresh(self) -> None:
         self._load_top5()
         self._load_categories()
-        if self._selected_category_id:
-            self._load_snippets(self._selected_category_id)
 
     def show_near_cursor(
         self,
         *,
         offset_px: int = 12,
-        width: int = 360,
-        height: int = 520,
+        width: int = 300,
+        height: int = 480,
     ) -> None:
+        self._target_hwnd = capture_foreground_window()
+        self._reset_top_detail()
+        self._hide_category_flyout()
+
+        self._panel_width = width
+        self._panel_height = height
+
         cursor_pos = QCursor.pos()
         screen = QGuiApplication.screenAt(cursor_pos)
         if screen is None:
             self.resize(width, height)
             self.move(cursor_pos.x() + offset_px, cursor_pos.y())
-            self.show()
+            self._present()
             return
 
         geo = screen.availableGeometry()
         x = cursor_pos.x() + offset_px
         y = cursor_pos.y()
-
         if x + width > geo.right():
             x = cursor_pos.x() - width - offset_px
         if y + height > geo.bottom():
-            y = geo.bottom() - height
+            y = max(geo.top(), geo.bottom() - height)
 
         self.setGeometry(x, y, width, height)
+        self._present()
+
+    def _present(self) -> None:
+        """즉시 표시 + 최상위 (포커스는 검색창)."""
         self.show()
+        self.raise_()
+        hwnd = int(self.winId())
+        if hwnd:
+            raise_window_topmost(hwnd)
+        self.activateWindow()
         self._search.setFocus()
+
+    def moveEvent(self, event) -> None:  # noqa: N802
+        super().moveEvent(event)
+        rect = self.frameGeometry()
+        if self._top_detail is not None and self._top_detail.isVisible():
+            self._top_detail.move(rect.right() + 4, rect.top())
+        if (
+            self._flyout is not None
+            and self._flyout.isVisible()
+        ):
+            self._flyout.reposition(rect.right() + 4, rect.top())
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         if event.key() == Qt.Key.Key_Escape:
-            self.close()
-            if self._on_close:
-                self._on_close()
+            self._close_popup()
             return
         super().keyPressEvent(event)
 
-    def _load_top5(self) -> None:
-        self._top_list.clear()
-        for snippet in snippet_repository.top_snippets(self._conn, limit=5):
-            self._top_list.addItem(self._make_item(snippet))
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.Leave:
+            if obj is self._top_list.viewport():
+                QTimer.singleShot(LEAVE_CHECK_MS, self._check_top5_zone)
+            elif self._top_detail is not None and obj is self._top_detail:
+                QTimer.singleShot(LEAVE_CHECK_MS, self._check_top5_zone)
+        return super().eventFilter(obj, event)
 
-    def _load_categories(self) -> None:
-        self._category_list.clear()
-        categories = category_repository.list_active(self._conn)
-        for cat in categories:
-            item = QListWidgetItem(cat.name)
-            item.setData(Qt.ItemDataRole.UserRole, cat.id)
-            self._category_list.addItem(item)
-        if categories:
-            self._category_list.setCurrentRow(0)
+    def _top5_zone_rects(self) -> list:
+        rects = [widget_global_rect(self._top_list.viewport())]
+        if self._top_detail is not None and self._top_detail.isVisible():
+            rects.append(self._top_detail.frameGeometry())
+        return rects
 
-    def _load_snippets(self, category_id: int) -> None:
-        self._snippet_list.clear()
-        for snippet in snippet_repository.list_by_category(self._conn, category_id):
-            self._snippet_list.addItem(self._make_item(snippet))
-
-    def _make_item(self, snippet: Snippet) -> QListWidgetItem:
-        preview = (snippet.body_text or "")[:60]
-        label = f"{snippet.title}"
-        if preview:
-            label += f" — {preview}"
-        item = QListWidgetItem(label)
-        item.setData(Qt.ItemDataRole.UserRole, snippet.id)
-        return item
-
-    def _on_category_changed(
-        self,
-        current: QListWidgetItem | None,
-        _previous: QListWidgetItem | None,
-    ) -> None:
-        if current is None:
+    def _check_top5_zone(self) -> None:
+        if cursor_in_any(QCursor.pos(), self._top5_zone_rects()):
             return
-        category_id = current.data(Qt.ItemDataRole.UserRole)
-        self._selected_category_id = category_id
-        self._load_snippets(category_id)
+        self._reset_top_detail()
 
-    def _on_search_changed(self, text: str) -> None:
-        self._snippet_list.clear()
-        if not text.strip():
-            if self._selected_category_id:
-                self._load_snippets(self._selected_category_id)
+    def _reset_top_detail(self) -> None:
+        if self._top_detail is None:
             return
-        for snippet in snippet_repository.search(self._conn, text.strip()):
-            self._snippet_list.addItem(self._make_item(snippet))
+        self._top_detail.reset()
+        self._top_list.clearSelection()
 
-    def _on_item_selected(self, item: QListWidgetItem) -> None:
-        snippet_id = item.data(Qt.ItemDataRole.UserRole)
-        snippet = snippet_repository.get_by_id(self._conn, snippet_id)
-        if snippet is None:
+    def _hide_category_flyout(self) -> None:
+        if self._flyout is not None:
+            self._flyout.hide_and_reset()
+        self._selected_category_id = None
+
+    def _on_category_flyout_dismissed(self) -> None:
+        self._selected_category_id = None
+
+    def event(self, event) -> bool:  # noqa: N802
+        if (
+            event.type() == QEvent.Type.WindowDeactivate
+            and self.isVisible()
+            and not self._pasting
+        ):
+            QTimer.singleShot(150, self._close_if_focus_lost)
+        return super().event(event)
+
+    def _category_panel_active(self) -> bool:
+        return (
+            self._selected_category_id is not None
+            and self._flyout is not None
+            and self._flyout.isVisible()
+        )
+
+    def _auxiliary_windows_at(self, pos) -> bool:
+        if self._flyout is not None and self._flyout.isVisible():
+            if self._flyout.frameGeometry().contains(pos):
+                return True
+        if self._top_detail is not None and self._top_detail.isVisible():
+            if self._top_detail.frameGeometry().contains(pos):
+                return True
+        return False
+
+    def _close_if_focus_lost(self) -> None:
+        if not self.isVisible():
             return
-        self._paste_service.paste_snippet(self._conn, snippet)
+        pos = QCursor.pos()
+        if self.frameGeometry().contains(pos) or self._auxiliary_windows_at(pos):
+            return
+        focused = QApplication.focusWidget()
+        if focused is not None:
+            w = focused.window()
+            if w is self or (self._flyout and w is self._flyout) or (
+                self._top_detail and w is self._top_detail
+            ):
+                return
+        self._close_popup()
+
+    def _close_popup(self) -> None:
+        self._hide_category_flyout()
+        self._reset_top_detail()
         self.close()
         if self._on_close:
             self._on_close()
+
+    def _load_top5(self) -> None:
+        self._top_list.clear()
+        inner_w = max(self.width() - 16, self._panel_width - 16)
+        for snippet in snippet_repository.top_snippets(self._conn, limit=5):
+            self._top_list.addItem(
+                make_snippet_list_item(
+                    self._conn,
+                    snippet,
+                    thumb_px=SNIPPET_THUMB_PX,
+                    text_preview_len=LIST_SUMMARY_PREVIEW_LEN,
+                    panel_width=inner_w,
+                )
+            )
+
+    def _load_categories(self) -> None:
+        self._category_list.clear()
+        for cat in category_repository.list_active(self._conn):
+            item = QListWidgetItem(cat.name)
+            item.setData(Qt.ItemDataRole.UserRole, cat.id)
+            self._category_list.addItem(item)
+
+    def _show_top_detail(self, snippet: Snippet) -> None:
+        if self._category_panel_active():
+            return
+        rect = self.frameGeometry()
+        detail = self._ensure_top_detail()
+        detail.show_snippet(
+            snippet,
+            global_x=rect.right() + 4,
+            global_y=rect.top(),
+            panel_width=rect.width(),
+            panel_height=rect.height(),
+        )
+
+    def _on_top_item_entered(self, item: QListWidgetItem) -> None:
+        if self._category_panel_active():
+            return
+        snippet_id = item.data(Qt.ItemDataRole.UserRole)
+        snippet = snippet_repository.get_by_id(self._conn, snippet_id)
+        if snippet is not None:
+            self._show_top_detail(snippet)
+
+    def _on_category_clicked(self, item: QListWidgetItem) -> None:
+        self._reset_top_detail()
+        category_id = item.data(Qt.ItemDataRole.UserRole)
+        self._selected_category_id = category_id
+        self._show_category_flyout(category_id)
+
+    def _show_category_flyout(self, category_id: int) -> None:
+        flyout = self._ensure_flyout()
+        rect = self.frameGeometry()
+        flyout.show_for_category(
+            category_id,
+            global_x=rect.right() + 4,
+            global_y=rect.top(),
+            panel_width=rect.width(),
+            panel_height=rect.height(),
+        )
+
+    def _on_search_changed(self, text: str) -> None:
+        if not text.strip():
+            self._load_top5()
+            self._reset_top_detail()
+            self._hide_category_flyout()
+            return
+        self._reset_top_detail()
+        self._hide_category_flyout()
+        self._top_list.clear()
+        inner_w = max(self.width() - 16, self._panel_width - 16)
+        for snippet in snippet_repository.search(self._conn, text.strip()):
+            self._top_list.addItem(
+                make_snippet_list_item(
+                    self._conn,
+                    snippet,
+                    thumb_px=SNIPPET_THUMB_PX,
+                    text_preview_len=LIST_SUMMARY_PREVIEW_LEN,
+                    panel_width=inner_w,
+                )
+            )
+        if self._flyout:
+            self._flyout.hide_and_reset()
+
+    def _on_top_item_selected(self, item: QListWidgetItem) -> None:
+        snippet_id = item.data(Qt.ItemDataRole.UserRole)
+        snippet = snippet_repository.get_by_id(self._conn, snippet_id)
+        if snippet is not None:
+            self._paste_snippet(snippet)
+
+    def _paste_snippet(self, snippet: Snippet) -> None:
+        if self._pasting:
+            return
+
+        target_hwnd = self._target_hwnd
+        self._pasting = True
+        self._set_lists_enabled(False)
+
+        def _paste_then_close() -> None:
+            ok = False
+            try:
+                ok = self._paste_service.paste_snippet(
+                    self._conn,
+                    snippet,
+                    target_hwnd=target_hwnd,
+                    show_warning=True,
+                )
+            finally:
+                self._pasting = False
+                self._set_lists_enabled(True)
+            if ok:
+                self._hide_category_flyout()
+                self._reset_top_detail()
+                self._close_popup()
+
+        QTimer.singleShot(30, _paste_then_close)
+
+    def _set_lists_enabled(self, enabled: bool) -> None:
+        self._top_list.setEnabled(enabled)
+        self._category_list.setEnabled(enabled)
+        self._search.setEnabled(enabled)

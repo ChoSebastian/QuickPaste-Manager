@@ -22,9 +22,17 @@ from src.ui.popup_window import PopupWindow
 from src.ui.settings_window import SettingsWindow
 from src.utils.config import load_settings, save_settings
 from src.utils.logger import setup_logging
+from src.utils.icons import ensure_tray_icon
 from src.utils.paths import ensure_app_directories, get_resources_dir
 
 logger = logging.getLogger("quickpaste.app")
+
+FALLBACK_HOTKEYS: tuple[str, ...] = (
+    "Ctrl+Shift+V",
+    "Ctrl+Alt+V",
+    "Ctrl+Shift+Insert",
+    "Ctrl+Alt+P",
+)
 
 
 class AppController:
@@ -42,8 +50,11 @@ class AppController:
         self._paste_service = create_paste_service(
             self._clipboard,
             paste_delay_ms=int(self._settings.get("paste_delay_ms", 50)),
+            restore_clipboard=bool(
+                self._settings.get("restore_clipboard_after_paste", True)
+            ),
         )
-        self._hotkey_service = create_hotkey_service()
+        self._hotkey_service = create_hotkey_service(app)
         self._mouse_service = create_mouse_trigger_service()
         self._import_export = create_import_export_service()
         self._backup = create_backup_service()
@@ -74,37 +85,85 @@ class AppController:
         return self._settings
 
     def _load_icon(self) -> QIcon:
-        icon_dir = get_resources_dir() / "icons"
-        for name in ("app.ico", "app.png"):
-            path = icon_dir / name
-            if path.exists():
-                return QIcon(str(path))
-        return QIcon()
+        try:
+            path = ensure_tray_icon()
+            return QIcon(str(path))
+        except Exception as exc:
+            logger.warning("트레이 아이콘 생성 실패: %s", exc)
+            icon_dir = get_resources_dir() / "icons"
+            for name in ("app.ico", "app.png"):
+                path = icon_dir / name
+                if path.exists():
+                    return QIcon(str(path))
+            return QIcon()
 
     def _register_triggers(self) -> None:
-        hotkey = str(self._settings.get("hotkey", "Ctrl+Shift+V"))
-        self._hotkey_service.register(hotkey, self.open_popup)
+        primary = str(self._settings.get("hotkey", "Ctrl+Shift+V"))
+        candidates = [primary, *(hk for hk in FALLBACK_HOTKEYS if hk != primary)]
+
+        registered = False
+        used_hotkey = primary
+        for hotkey in candidates:
+            if self._hotkey_service.register(hotkey, self.open_popup):
+                registered = True
+                used_hotkey = hotkey
+                break
+
+        if registered:
+            if used_hotkey != primary:
+                logger.info("대체 단축키 사용: %s (원래: %s)", used_hotkey, primary)
+            return
+
+        logger.warning("전역 단축키 등록 실패: %s", primary)
+        QMessageBox.warning(
+            None,
+            "단축키 등록 실패",
+            f"'{primary}' 및 대체 단축키 등록에 모두 실패했습니다.\n"
+            "다른 프로그램이 단축키를 사용 중일 수 있습니다.\n"
+            "트레이 메뉴에서 팝업을 열거나 환경설정에서 단축키를 변경하세요.",
+        )
 
         if self._settings.get("mouse_wheel_trigger_enabled", False):
             self._mouse_service.start(self.open_popup)
 
+    def _reregister_triggers(self) -> None:
+        self._hotkey_service.unregister()
+        self._mouse_service.stop()
+        self._register_triggers()
+
     def start(self) -> None:
         self._tray.show()
+        self._ensure_popup()
         logger.info("QuickPaste Manager 시작")
 
-    def open_popup(self) -> None:
+    def _ensure_popup(self) -> PopupWindow:
         if self._popup is None:
             self._popup = PopupWindow(
                 self._conn,
                 self._paste_service,
                 on_close=self._on_popup_closed,
+                on_help=self.show_help,
             )
-        self._popup.refresh()
-        self._popup.show_near_cursor(
-            offset_px=int(self._settings.get("popup_offset_px", 12)),
-            width=int(self._settings.get("popup_width", 360)),
-            height=int(self._settings.get("popup_height", 520)),
-        )
+            self._popup.refresh()
+        return self._popup
+
+    def open_popup(self) -> None:
+        try:
+            popup = self._ensure_popup()
+            popup.show_near_cursor(
+                offset_px=int(self._settings.get("popup_offset_px", 12)),
+                width=int(self._settings.get("popup_width", 360)),
+                height=int(self._settings.get("popup_height", 520)),
+            )
+            popup.refresh()
+        except Exception as exc:
+            logger.exception("팝업 열기 실패: %s", exc)
+            self._popup = None
+            QMessageBox.critical(
+                None,
+                "팝업 오류",
+                f"팝업을 열 수 없습니다.\n\n{exc}",
+            )
 
     def _on_popup_closed(self) -> None:
         pass
@@ -123,7 +182,10 @@ class AppController:
                 self._settings,
                 on_save=self._save_settings,
             )
-        self._settings_window.load_settings(self._settings)
+        self._settings_window.load_settings(
+            self._settings,
+            hotkey_active=self._hotkey_service.active_hotkey,
+        )
         self._settings_window.show()
         self._settings_window.raise_()
         self._settings_window.activateWindow()
@@ -131,7 +193,15 @@ class AppController:
     def _save_settings(self, new_settings: dict) -> None:
         self._settings = new_settings
         save_settings(self._settings)
-        logger.info("설정 저장 완료")
+
+        self._paste_service.set_paste_delay_ms(
+            int(self._settings.get("paste_delay_ms", 50))
+        )
+        self._paste_service.set_restore_clipboard(
+            bool(self._settings.get("restore_clipboard_after_paste", True))
+        )
+        self._reregister_triggers()
+        logger.info("설정 저장 완료 — 단축키·붙여넣기 옵션 반영")
 
     def export_data(self) -> None:
         from src.utils.paths import get_exports_dir
@@ -152,12 +222,14 @@ class AppController:
         )
 
     def show_help(self) -> None:
+        hotkey = self._settings.get("hotkey", "Ctrl+Shift+V")
         QMessageBox.information(
             None,
             "도움말",
             "QuickPaste Manager\n\n"
-            "트레이 메뉴에서 팝업/관리/설정을 열 수 있습니다.\n"
-            "전역 단축키는 Phase 4에서 구현 예정입니다.",
+            f"전역 단축키: {hotkey}\n"
+            "트레이 메뉴에서도 팝업/관리/설정을 열 수 있습니다.\n"
+            "상용구 선택 시 클립보드 등록 후 자동 붙여넣기를 시도합니다.",
         )
 
     def quit(self) -> None:

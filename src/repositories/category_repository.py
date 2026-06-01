@@ -8,6 +8,8 @@ from datetime import datetime
 from src.models.category import Category
 from src.repositories.db import utc_now_iso
 
+MAX_CATEGORIES = 10
+
 
 def _row_to_category(row: sqlite3.Row) -> Category:
     return Category(
@@ -68,6 +70,58 @@ def update_name(conn: sqlite3.Connection, category_id: int, name: str) -> None:
     conn.execute(
         "UPDATE categories SET name = ?, updated_at = ? WHERE id = ?",
         (name, utc_now_iso(), category_id),
+    )
+
+
+def count_active(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) FROM categories WHERE active = 1"
+    ).fetchone()
+    return int(row[0])
+
+
+def next_sort_order(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories WHERE active = 1"
+    ).fetchone()
+    return int(row[0])
+
+
+def restore(conn: sqlite3.Connection, category_id: int) -> None:
+    conn.execute(
+        "UPDATE categories SET active = 1, updated_at = ? WHERE id = ?",
+        (utc_now_iso(), category_id),
+    )
+
+
+def update(
+    conn: sqlite3.Connection,
+    category_id: int,
+    *,
+    name: str | None = None,
+    color: str | None = None,
+    sort_order: int | None = None,
+) -> None:
+    category = get_by_id(conn, category_id)
+    if category is None:
+        raise ValueError(f"Category not found: {category_id}")
+
+    conn.execute(
+        """
+        UPDATE categories SET
+            name = ?,
+            color = ?,
+            sort_order = ?,
+            updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            name if name is not None else category.name,
+            color if color is not None else category.color,
+            sort_order if sort_order is not None else category.sort_order,
+            utc_now_iso(),
+            category_id,
+        ),
     )
 
 

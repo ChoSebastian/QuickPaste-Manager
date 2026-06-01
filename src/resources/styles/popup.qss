@@ -1,0 +1,136 @@
+/* QuickPaste 팝업 — docs/기본ui-1.png, 기본ui-2.png 참고 */
+
+QWidget#SnippetDetailFlyout {
+    background-color: #f0f0f0;
+    border: 1px solid #808080;
+}
+
+QWidget#SnippetFlyout {
+    background-color: #f0f0f0;
+    border: 1px solid #808080;
+}
+
+QWidget#PopupRoot {
+    background-color: #f0f0f0;
+    border: 1px solid #808080;
+}
+
+QLabel#SectionTitle {
+    font-weight: bold;
+    font-size: 10pt;
+    color: #333333;
+    padding: 2px 0;
+}
+
+QLineEdit#SearchEdit {
+    background-color: #ffffff;
+    border: 1px solid #a0a0a0;
+    border-radius: 2px;
+    padding: 6px 8px;
+    font-size: 10pt;
+}
+
+QListWidget#TopList,
+QListWidget#CategoryList,
+QListWidget#SnippetFlyoutList {
+    background-color: #ffffff;
+    border: 1px solid #a0a0a0;
+    border-radius: 0;
+    font-size: 9pt;
+    outline: none;
+}
+
+QListWidget#TopList::item,
+QListWidget#CategoryList::item,
+QListWidget#SnippetFlyoutList::item {
+    padding: 4px 6px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+QListWidget#TopList::item:selected,
+QListWidget#CategoryList::item:selected,
+QListWidget#SnippetFlyoutList::item:selected {
+    background-color: #d8e8f8;
+    color: #000000;
+}
+
+QListWidget#TopList::item:hover,
+QListWidget#CategoryList::item:hover,
+QListWidget#SnippetFlyoutList::item:hover {
+    background-color: #e8f0f8;
+}
+
+QPushButton#TitleBtn {
+    background-color: #e0e0e0;
+    border: 1px solid #999999;
+    border-radius: 2px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 22px;
+    max-height: 22px;
+    font-size: 10pt;
+}
+
+QPushButton#TitleBtn:hover {
+    background-color: #d0d0d0;
+}
+
+QPushButton#ActionBtn {
+    background-color: #e8e8e8;
+    border: 1px solid #999999;
+    border-radius: 2px;
+    padding: 6px 12px;
+    font-size: 9pt;
+    min-height: 26px;
+}
+
+QPushButton#ActionBtn:hover {
+    background-color: #d8d8d8;
+}
+
+QPushButton#ActionBtn:disabled {
+    color: #888888;
+    background-color: #f0f0f0;
+}
+
+QLabel#TitleLabel {
+    font-weight: bold;
+    font-size: 11pt;
+    color: #222222;
+}
+
+QWidget#TitleBar {
+    background-color: #e4e4e4;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+QFrame#SectionLine {
+    color: #c0c0c0;
+}
+
+QWidget#PreviewPanel {
+    background-color: #ffffff;
+    border: 1px solid #808080;
+}
+
+QTextEdit#PreviewText {
+    border: none;
+    background-color: #ffffff;
+    font-size: 9pt;
+}
+
+QLabel#ImageOpenHint {
+    font-size: 8pt;
+    color: #555555;
+    padding: 2px 4px;
+}
+
+QScrollArea#ImagePreviewScroll {
+    background-color: #ffffff;
+    border: 1px solid #a0a0a0;
+}
+
+QLabel#ClickableImagePreview {
+    background-color: transparent;
+    padding: 4px;
+}

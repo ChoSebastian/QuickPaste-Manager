@@ -18,7 +18,11 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 | Import / Export (ZIP) | |
 | 로컬 SQLite + AppData 저장 | |
 
-현재 착수 단계에서는 **실행 가능한 골격**만 구현되어 있으며, 전역 단축키·자동 붙여넣기·이미지 클립보드 등은 TODO로 남겨 두었습니다.
+현재 착수 단계에서는 **실행 가능한 골격**과 **핵심 호출·붙여넣기 흐름**이 구현되어 있습니다.
+
+- ✅ 전역 단축키 (`Ctrl+Shift+V`, RegisterHotKey)
+- ✅ 텍스트 클립보드 + SendInput 자동 Ctrl+V
+- ⬜ 마우스 휠 호출, 이미지 클립보드, Import/Export 등
 
 ---
 
@@ -34,21 +38,26 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 
 ## 설치 방법
 
+> **Windows Store `python` 스텁 주의:** PATH에 `WindowsApps\python.exe`만 있으면 실제 Python이 없을 수 있습니다.  
+> 이 경우 `winget install Python.Python.3.12` 로 설치하거나 [python.org](https://www.python.org/downloads/)에서 설치하세요.
+
 ```powershell
 cd "D:\Smit_Dev\Python\QuickPaste Manager"
 
-# 가상환경 생성 (권장)
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# 1) 부트스트랩 (Python 자동 탐색 + venv + 의존성)
+.\scripts\bootstrap.ps1
 
-# 의존성 설치
-pip install -r requirements.txt
+# 2) 앱 실행
+.\scripts\dev_run.ps1
 ```
 
-또는 부트스트랩 스크립트:
+수동 설치:
 
 ```powershell
-.\scripts\bootstrap.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m src.main
 ```
 
 ---
@@ -161,13 +170,13 @@ git push -u origin main
 
 ---
 
-## 제한사항 (착수 단계)
+## 제한사항 (현재)
 
-- 전역 단축키·마우스 훅은 **stub** 상태
-- 자동 붙여넣기는 클립보드 등록까지만 동작
+- 마우스 휠 훅은 **stub** 상태
 - 이미지 붙여넣기 미구현
 - Import/Export 미구현
 - 설치 마법사·시작 프로그램 등록 미구현
+- 일부 앱(관리자 권한 프로세스 등)에서는 SendInput 붙여넣기가 차단될 수 있음
 
 ---
 

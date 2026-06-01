@@ -58,9 +58,13 @@ class SettingsWindow(QMainWindow):
         trigger = QWidget()
         trigger_form = QFormLayout(trigger)
         self._hotkey_edit = QLineEdit()
-        self._mouse_wheel = QCheckBox("마우스 휠 클릭으로 호출")
+        self._hotkey_status = QLabel("")
+        self._hotkey_status.setWordWrap(True)
+        self._hotkey_status.setStyleSheet("color: #666;")
+        self._mouse_wheel = QCheckBox("마우스 휠 클릭으로 호출 (미구현 — 저장만 됨)")
         self._startup = QCheckBox("Windows 시작 시 실행")
         trigger_form.addRow("호출 단축키", self._hotkey_edit)
+        trigger_form.addRow("등록 상태", self._hotkey_status)
         trigger_form.addRow("", self._mouse_wheel)
         trigger_form.addRow("", self._startup)
         tabs.addTab(trigger, "호출 방식")
@@ -108,11 +112,29 @@ class SettingsWindow(QMainWindow):
         btn_row.addWidget(cancel_btn)
         layout.addLayout(btn_row)
 
-    def load_settings(self, settings: dict) -> None:
+    def load_settings(
+        self,
+        settings: dict,
+        *,
+        hotkey_active: str | None = None,
+    ) -> None:
         self._settings = dict(settings)
         self._theme_edit.setText(str(settings.get("theme", "system")))
         self._font_size.setValue(int(settings.get("font_size", 10)))
-        self._hotkey_edit.setText(str(settings.get("hotkey", "Ctrl+Shift+V")))
+        configured = str(settings.get("hotkey", "Ctrl+Shift+V"))
+        self._hotkey_edit.setText(configured)
+        if hotkey_active:
+            self._hotkey_status.setText(
+                f"✅ 시스템에 등록됨: {hotkey_active}"
+            )
+            if hotkey_active != configured:
+                self._hotkey_status.setText(
+                    f"⚠ 저장값({configured})과 다름 — 실제 등록: {hotkey_active}"
+                )
+        else:
+            self._hotkey_status.setText(
+                "❌ 전역 단축키 미등록 — 다른 앱 충돌 또는 이전 프로세스 잔존 가능"
+            )
         self._mouse_wheel.setChecked(bool(settings.get("mouse_wheel_trigger_enabled", False)))
         self._startup.setChecked(bool(settings.get("startup_with_windows", False)))
         self._paste_delay.setValue(int(settings.get("paste_delay_ms", 50)))

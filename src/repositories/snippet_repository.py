@@ -74,6 +74,27 @@ def create_text(
     return int(cursor.lastrowid)
 
 
+def create_image(
+    conn: sqlite3.Connection,
+    *,
+    category_id: int,
+    title: str,
+    asset_id: int,
+    tags: str = "",
+) -> int:
+    now = utc_now_iso()
+    cursor = conn.execute(
+        """
+        INSERT INTO snippets (
+            category_id, title, content_type, asset_id, tags,
+            use_count, pinned, active, created_at, updated_at
+        ) VALUES (?, ?, 'image', ?, ?, 0, 0, 1, ?, ?)
+        """,
+        (category_id, title, asset_id, tags, now, now),
+    )
+    return int(cursor.lastrowid)
+
+
 def update(
     conn: sqlite3.Connection,
     snippet_id: int,
@@ -118,6 +139,47 @@ def soft_delete(conn: sqlite3.Connection, snippet_id: int) -> None:
     )
 
 
+def restore(conn: sqlite3.Connection, snippet_id: int) -> None:
+    conn.execute(
+        "UPDATE snippets SET active = 1, updated_at = ? WHERE id = ?",
+        (utc_now_iso(), snippet_id),
+    )
+
+
+def permanent_delete(conn: sqlite3.Connection, snippet_id: int) -> None:
+    conn.execute("DELETE FROM usage_events WHERE snippet_id = ?", (snippet_id,))
+    conn.execute("DELETE FROM snippets WHERE id = ?", (snippet_id,))
+
+
+def list_trash(
+    conn: sqlite3.Connection,
+    *,
+    category_id: int | None = None,
+) -> list[Snippet]:
+    query = "SELECT * FROM snippets WHERE active = 0"
+    params: tuple[int, ...] = ()
+    if category_id is not None:
+        query += " AND category_id = ?"
+        params = (category_id,)
+    query += " ORDER BY updated_at DESC"
+    rows = conn.execute(query, params).fetchall()
+    return [_row_to_snippet(r) for r in rows]
+
+
+def count_trash(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) FROM snippets WHERE active = 0"
+    ).fetchone()
+    return int(row[0])
+
+
+def empty_trash(conn: sqlite3.Connection) -> int:
+    rows = conn.execute("SELECT id FROM snippets WHERE active = 0").fetchall()
+    for row in rows:
+        permanent_delete(conn, int(row["id"]))
+    return len(rows)
+
+
 def record_usage(conn: sqlite3.Connection, snippet_id: int) -> None:
     now = utc_now_iso()
     conn.execute(
@@ -131,12 +193,19 @@ def record_usage(conn: sqlite3.Connection, snippet_id: int) -> None:
 
 
 def top_snippets(conn: sqlite3.Connection, limit: int = 5) -> list[Snippet]:
-    """Top N 상용구 (간단 점수: use_count + pinned 가산)."""
+    """Top N — use_count, pinned, 최근 24h/7d 사용 가산."""
     rows = conn.execute(
         """
-        SELECT * FROM snippets
+        SELECT *,
+            (
+                use_count
+                + CASE WHEN pinned = 1 THEN 1000 ELSE 0 END
+                + CASE WHEN last_used_at >= datetime('now', '-1 day') THEN 50 ELSE 0 END
+                + CASE WHEN last_used_at >= datetime('now', '-7 days') THEN 20 ELSE 0 END
+            ) AS score
+        FROM snippets
         WHERE active = 1
-        ORDER BY pinned DESC, use_count DESC, last_used_at DESC
+        ORDER BY score DESC, last_used_at DESC, title
         LIMIT ?
         """,
         (limit,),
