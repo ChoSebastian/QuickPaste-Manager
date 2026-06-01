@@ -6,6 +6,9 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 
 **저장소:** [github.com/ChoSebastian/QuickPaste-Manager](https://github.com/ChoSebastian/QuickPaste-Manager)
 
+> **안정 마감 릴리스: [v0.2.2](https://github.com/ChoSebastian/QuickPaste-Manager/releases/tag/v0.2.2)** (2026-06-01)  
+> 배포·이슈 수정은 v0.2.2 기준으로 종료합니다. 변경 이력은 [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## 주요 기능
@@ -207,11 +210,14 @@ git push origin main
 
 ---
 
-## 로드맵
+## v0.2.2 이후 (미정)
 
-1. 팝업 크기 환경설정 UI
-2. 마우스 트리거 연동 여부 결정
-3. 대량 상용구 성능·호환성 테스트 확대
+v0.2.2 마감 이후 검토 가능 항목:
+
+1. 코드 서명·Smart App Control 대응 ([deploy.md](docs/deploy.md))
+2. 팝업 크기 환경설정 UI
+3. 마우스 트리거 연동 여부
+4. 대량 상용구 성능·호환성 테스트
 
 ---
 
