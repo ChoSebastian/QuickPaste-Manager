@@ -80,6 +80,24 @@ def capture_foreground_window() -> int | None:
         return None
 
 
+def capture_window_at_cursor() -> int | None:
+    """커서 위치의 최상위 창 HWND (팝업이 topmost여도 커서 아래 창 추적용)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import win32gui
+
+        x, y = win32gui.GetCursorPos()
+        hwnd = win32gui.WindowFromPoint((x, y))
+        if not hwnd:
+            return None
+        root = win32gui.GetAncestor(int(hwnd), 2)  # GA_ROOT
+        return int(root) if root else int(hwnd)
+    except Exception as exc:
+        logger.debug("커서 아래 창 캡처 실패: %s", exc)
+        return None
+
+
 def _alt_key_foreground_trick() -> None:
     """SetForegroundWindow 제한 완화용 Alt 키 탭 (입력 없음)."""
     alt_down = _make_key_input(VK_MENU)

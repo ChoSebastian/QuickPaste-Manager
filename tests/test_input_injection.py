@@ -9,6 +9,7 @@ from unittest.mock import patch
 from src.utils.input_injection import (
     INPUT,
     capture_foreground_window,
+    capture_window_at_cursor,
     send_ctrl_v,
 )
 
@@ -45,3 +46,8 @@ def test_input_struct_size_reasonable():
 def test_capture_foreground_non_windows():
     with patch.object(sys, "platform", "linux"):
         assert capture_foreground_window() is None
+
+
+def test_capture_window_at_cursor_non_windows():
+    with patch.object(sys, "platform", "linux"):
+        assert capture_window_at_cursor() is None

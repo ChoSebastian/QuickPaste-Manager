@@ -5,7 +5,12 @@ from __future__ import annotations
 import sys
 from unittest.mock import MagicMock, patch
 
-from src.utils.win_clipboard import get_unicode_text, set_unicode_text, wait_unicode_text
+from src.utils.win_clipboard import (
+    exclude_from_clipboard_history,
+    get_unicode_text,
+    set_unicode_text,
+    wait_unicode_text,
+)
 
 SAMPLE_KO = "안녕하세요 테스트"
 
@@ -37,11 +42,18 @@ def test_set_and_get_unicode_text():
     mock_clip.SetClipboardData = set_data
     mock_clip.GetClipboardData = get_data
 
+    exclude_mock = MagicMock(return_value=True)
+
     with (
         patch.object(sys, "platform", "win32"),
         patch.dict(sys.modules, {"win32clipboard": mock_clip, "win32con": mock_con}),
+        patch(
+            "src.utils.win_clipboard.exclude_from_clipboard_history",
+            exclude_mock,
+        ),
     ):
         assert set_unicode_text(SAMPLE_KO) is True
+        exclude_mock.assert_called_once()
         assert get_unicode_text() == SAMPLE_KO
         assert wait_unicode_text(SAMPLE_KO) is True
         assert mock_con.CF_TEXT in stored

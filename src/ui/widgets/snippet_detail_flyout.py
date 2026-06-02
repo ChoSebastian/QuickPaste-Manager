@@ -70,6 +70,9 @@ class SnippetDetailFlyout(QWidget):
 
         root.addWidget(body, stretch=1)
 
+    def set_header_title(self, title: str) -> None:
+        self._header.set_title(title)
+
     def _handle_close(self) -> None:
         self.reset()
         if self._on_close is not None:

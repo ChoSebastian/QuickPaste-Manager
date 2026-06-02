@@ -9,6 +9,24 @@ import time
 logger = logging.getLogger("quickpaste.clipboard")
 
 
+def exclude_from_clipboard_history() -> bool:
+    """다음 클립보드 쓰기를 Windows 클립보드 히스토리(Win+V)·동기화 모니터에서 제외."""
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+
+        fn = ctypes.windll.user32.ExcludeClipboardContentFromMonitorProcessing
+    except (AttributeError, OSError) as exc:
+        logger.debug("클립보드 히스토리 제외 API 없음: %s", exc)
+        return False
+    try:
+        return bool(fn())
+    except Exception as exc:
+        logger.debug("클립보드 히스토리 제외 호출 실패: %s", exc)
+        return False
+
+
 def get_unicode_text() -> str:
     if sys.platform != "win32":
         return ""
@@ -42,6 +60,7 @@ def set_unicode_text(text: str) -> bool:
         import win32clipboard
         import win32con
 
+        exclude_from_clipboard_history()
         win32clipboard.OpenClipboard()
         try:
             win32clipboard.EmptyClipboard()

@@ -60,6 +60,10 @@ class QtClipboardService:
             if image.isNull():
                 logger.error("이미지 로드 실패: %s", image_path)
                 return False
+            if sys.platform == "win32":
+                from src.utils.win_clipboard import exclude_from_clipboard_history
+
+                exclude_from_clipboard_history()
             self._clipboard().setImage(image)
             if self._app is not None:
                 self._app.processEvents()

@@ -52,3 +52,43 @@ def test_paste_keeps_popup_when_setting_off(snippet_conn, qapp, qtbot):
 
     assert paste.paste_snippet.called
     assert window.isVisible()
+
+
+def test_paste_keeps_category_flyout_when_setting_off(snippet_conn, qapp, qtbot):
+    conn, snippet = snippet_conn
+    paste = MagicMock()
+    paste.paste_snippet.return_value = True
+    window = PopupWindow(conn, paste, close_popup_after_paste=lambda: False)
+    window.show()
+    qtbot.waitExposed(window)
+
+    cat_id = snippet.category_id
+    window._show_category_flyout(cat_id)
+    flyout = window._ensure_flyout()
+    qtbot.waitExposed(flyout)
+
+    with patch("src.ui.popup_window.capture_foreground_window", return_value=None):
+        window._paste_snippet(snippet)
+    qtbot.wait(80)
+
+    assert flyout.isVisible()
+
+
+def test_category_flyout_not_closed_on_leave_event(snippet_conn, qapp, qtbot):
+    from PySide6.QtCore import QEvent
+
+    conn, _snippet = snippet_conn
+    paste = MagicMock()
+    window = PopupWindow(conn, paste, close_popup_after_paste=lambda: False)
+    window.show()
+    qtbot.waitExposed(window)
+
+    cat_id = category_repository.list_active(conn)[0].id
+    window._show_category_flyout(cat_id)
+    flyout = window._ensure_flyout()
+    qtbot.waitExposed(flyout)
+
+    flyout.leaveEvent(QEvent(QEvent.Type.Leave))
+    qtbot.wait(120)
+
+    assert flyout.isVisible()

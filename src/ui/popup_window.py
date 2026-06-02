@@ -35,7 +35,7 @@ from src.ui.widgets.hover_zone import LEAVE_CHECK_MS, cursor_in_any, widget_glob
 from src.ui.widgets.snippet_detail_flyout import SnippetDetailFlyout
 from src.ui.widgets.snippet_flyout import SnippetFlyout
 from src.ui.popup_flags import popup_window_flags
-from src.utils.input_injection import capture_foreground_window
+from src.utils.input_injection import capture_foreground_window, capture_window_at_cursor
 from src.utils.paths import get_resources_dir
 from src.utils.win_window import raise_window_topmost
 
@@ -71,6 +71,7 @@ class PopupWindow(QWidget):
         self._close_popup_after_paste = close_popup_after_paste or (lambda: True)
         self._selected_category_id: int | None = None
         self._target_hwnd: int | None = None
+        self._target_poll_timer: QTimer | None = None
         self._pasting = False
         self._panel_width = 300
         self._panel_height = 480
@@ -172,8 +173,6 @@ class PopupWindow(QWidget):
             self._flyout = SnippetFlyout(
                 self._conn,
                 on_select=self._paste_snippet,
-                main_popup=self,
-                on_dismissed=self._on_category_flyout_dismissed,
                 on_close=self._hide_category_flyout,
             )
             sheet = _load_popup_stylesheet()
@@ -231,6 +230,30 @@ class PopupWindow(QWidget):
             raise_window_topmost(hwnd)
         self.activateWindow()
         self._search.setFocus()
+        self._update_target_poll_timer()
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._update_target_poll_timer()
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        self._stop_target_poll_timer()
+        super().hideEvent(event)
+
+    def _update_target_poll_timer(self) -> None:
+        if self._close_popup_after_paste():
+            self._stop_target_poll_timer()
+            return
+        if self._target_poll_timer is None:
+            self._target_poll_timer = QTimer(self)
+            self._target_poll_timer.setInterval(100)
+            self._target_poll_timer.timeout.connect(self._sync_external_target_hwnd)
+        if self.isVisible():
+            self._target_poll_timer.start()
+
+    def _stop_target_poll_timer(self) -> None:
+        if self._target_poll_timer is not None:
+            self._target_poll_timer.stop()
 
     def moveEvent(self, event) -> None:  # noqa: N802
         super().moveEvent(event)
@@ -293,18 +316,55 @@ class PopupWindow(QWidget):
             self._flyout.hide_and_reset()
         self._selected_category_id = None
 
-    def _on_category_flyout_dismissed(self) -> None:
-        self._selected_category_id = None
-
     def event(self, event) -> bool:  # noqa: N802
         if (
             event.type() == QEvent.Type.WindowDeactivate
             and self.isVisible()
             and not self._pasting
-            and self._close_popup_after_paste()
         ):
-            QTimer.singleShot(150, self._close_if_focus_lost)
+            if self._close_popup_after_paste():
+                QTimer.singleShot(150, self._close_if_focus_lost)
+            else:
+                self._sync_external_target_hwnd()
+                QTimer.singleShot(50, self._sync_external_target_hwnd)
         return super().event(event)
+
+    def _popup_hwnds(self) -> frozenset[int]:
+        hwnds: set[int] = set()
+        wid = self.winId()
+        if wid:
+            hwnds.add(int(wid))
+        if self._flyout is not None and self._flyout.isVisible():
+            fw = self._flyout.winId()
+            if fw:
+                hwnds.add(int(fw))
+            hwnds.update(self._flyout.auxiliary_hwnds())
+        if self._top_detail is not None and self._top_detail.isVisible():
+            dw = self._top_detail.winId()
+            if dw:
+                hwnds.add(int(dw))
+        return frozenset(hwnds)
+
+    def _sync_external_target_hwnd(self) -> None:
+        """팝업 유지 모드: 커서·전경이 우리 UI 밖이면 붙여넣기 대상 HWND 갱신."""
+        if not self.isVisible() or self._pasting or self._close_popup_after_paste():
+            return
+
+        ours = self._popup_hwnds()
+        pos = QCursor.pos()
+        over_ours = self.frameGeometry().contains(pos) or self._auxiliary_windows_at(
+            pos
+        )
+
+        if not over_ours:
+            hwnd = capture_window_at_cursor()
+            if hwnd and hwnd not in ours:
+                self._target_hwnd = hwnd
+                return
+
+        hwnd = capture_foreground_window()
+        if hwnd and hwnd not in ours:
+            self._target_hwnd = hwnd
 
     def _category_panel_active(self) -> bool:
         return (
@@ -316,6 +376,8 @@ class PopupWindow(QWidget):
     def _auxiliary_windows_at(self, pos) -> bool:
         if self._flyout is not None and self._flyout.isVisible():
             if self._flyout.frameGeometry().contains(pos):
+                return True
+            if self._flyout.auxiliary_contains(pos):
                 return True
         if self._top_detail is not None and self._top_detail.isVisible():
             if self._top_detail.frameGeometry().contains(pos):
@@ -333,13 +395,19 @@ class PopupWindow(QWidget):
         focused = QApplication.focusWidget()
         if focused is not None:
             w = focused.window()
+            cat_detail = (
+                self._flyout.category_detail_widget()
+                if self._flyout is not None
+                else None
+            )
             if w is self or (self._flyout and w is self._flyout) or (
                 self._top_detail and w is self._top_detail
-            ):
+            ) or (cat_detail is not None and w is cat_detail):
                 return
         self._close_popup()
 
     def _close_popup(self) -> None:
+        self._stop_target_poll_timer()
         self._hide_category_flyout()
         self._reset_top_detail()
         self.close()
@@ -438,6 +506,7 @@ class PopupWindow(QWidget):
         if self._pasting:
             return
 
+        self._sync_external_target_hwnd()
         target_hwnd = self._target_hwnd
         self._pasting = True
         self._set_lists_enabled(False)
@@ -455,12 +524,11 @@ class PopupWindow(QWidget):
                 self._pasting = False
                 self._set_lists_enabled(True)
             if ok:
-                self._hide_category_flyout()
-                self._reset_top_detail()
                 if self._close_popup_after_paste():
+                    self._hide_category_flyout()
+                    self._reset_top_detail()
                     self._close_popup()
                 else:
-                    self._target_hwnd = capture_foreground_window()
                     hwnd = int(self.winId())
                     if hwnd:
                         raise_window_topmost(hwnd)
