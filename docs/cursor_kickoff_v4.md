@@ -59,9 +59,11 @@ _target_poll_timer 100ms → _sync_external_target_hwnd()
 - **No** `leaveEvent` auto-close
 - Close: header × → `on_close` → `_hide_category_flyout`
 
-### 3.4 `SnippetDetailFlyout`
+### 3.4 `SnippetFlyout` + Top 5
 
-- `set_header_title()` for category vs Top5 default title
+- 카테고리 목록 열림 + Top 5 hover → `_top_detail_anchor()` → flyout.right+4
+- `flyout.reset_detail_panel()` before Top 5 detail
+- Top 5 detail: leave Top 5 zone only to close (not on paste)
 
 ---
 
@@ -122,7 +124,8 @@ v3와 동일: 마우스 휠 UI, 테마, `image_paste_mode` UI.
 - [ ] 마우스를 Word로 옮겨 붙여넣기 → **목록 창 유지**
 - [ ] a창 붙여넣기 → b창 클릭 → b에 붙여넣기 (유지 모드)
 - [ ] Win+V에 상용구 텍스트가 쌓이지 않음(Win10 1809+)
-- [ ] × 로 카테고리 목록 닫힘
+- [ ] 카테고리 열림 상태에서 Top 5 오버 → 목록 **우측** Top 5 상세
+- [ ] Top 5 붙여넣기 후 상세는 리스트 이탈 시에만 닫힘
 
 ---
 

@@ -16,6 +16,7 @@
 - 붙여넣기 후 닫기 OFF 시 플라이아웃·상세 유지
 - 팝업 유지 모드: 다중 창 연속 붙여넣기(HWND 커서 추적)
 - Win+V 클립보드 히스토리 제외 (`ExcludeClipboardContentFromMonitorProcessing`)
+- **카테고리 목록 열림 + Top 5 호버·붙여넣기** (목록 유지, Top 5 상세는 리스트 이탈 시 닫힘)
 
 ### 문서
 

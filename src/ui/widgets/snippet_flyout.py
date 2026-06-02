@@ -155,6 +155,10 @@ class SnippetFlyout(QWidget):
             return
         self._reset_detail_panel()
 
+    def reset_detail_panel(self) -> None:
+        """카테고리 상세 패널만 닫는다(목록 창은 유지)."""
+        self._reset_detail_panel()
+
     def _reset_detail_panel(self) -> None:
         self._hover_timer.stop()
         self._pending_snippet_id = None

@@ -32,7 +32,7 @@ from src.ui.widgets.snippet_list_item import (
 )
 from src.ui.widgets.draggable_title_bar import DraggableTitleBar
 from src.ui.widgets.hover_zone import LEAVE_CHECK_MS, cursor_in_any, widget_global_rect
-from src.ui.widgets.snippet_detail_flyout import SnippetDetailFlyout
+from src.ui.widgets.snippet_detail_flyout import TOP5_DETAIL_HEADER, SnippetDetailFlyout
 from src.ui.widgets.snippet_flyout import SnippetFlyout
 from src.ui.popup_flags import popup_window_flags
 from src.utils.input_injection import capture_foreground_window, capture_window_at_cursor
@@ -258,13 +258,14 @@ class PopupWindow(QWidget):
     def moveEvent(self, event) -> None:  # noqa: N802
         super().moveEvent(event)
         rect = self.frameGeometry()
-        if self._top_detail is not None and self._top_detail.isVisible():
-            self._top_detail.move(rect.right() + 4, rect.top())
         if (
             self._flyout is not None
             and self._flyout.isVisible()
         ):
             self._flyout.reposition(rect.right() + 4, rect.top())
+        if self._top_detail is not None and self._top_detail.isVisible():
+            x, y, _, _ = self._top_detail_anchor()
+            self._top_detail.move(x, y)
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         if event.key() == Qt.Key.Key_Escape:
@@ -435,22 +436,38 @@ class PopupWindow(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, cat.id)
             self._category_list.addItem(item)
 
-    def _show_top_detail(self, snippet: Snippet) -> None:
-        if self._category_panel_active():
-            return
+    def _top_detail_anchor(self) -> tuple[int, int, int, int]:
+        """Top5 상세 패널 위치·크기 (x, y, width, height)."""
         rect = self.frameGeometry()
+        if self._category_panel_active() and self._flyout is not None:
+            fly_rect = self._flyout.frameGeometry()
+            return (
+                fly_rect.right() + 4,
+                fly_rect.top(),
+                self._panel_width,
+                self._panel_height,
+            )
+        return rect.right() + 4, rect.top(), rect.width(), rect.height()
+
+    def _show_top_detail(self, snippet: Snippet) -> None:
+        if self._category_panel_active() and self._flyout is not None:
+            self._flyout.reset_detail_panel()
+        global_x, global_y, panel_w, panel_h = self._top_detail_anchor()
         detail = self._ensure_top_detail()
+        detail.set_header_title(TOP5_DETAIL_HEADER)
         detail.show_snippet(
             snippet,
-            global_x=rect.right() + 4,
-            global_y=rect.top(),
-            panel_width=rect.width(),
-            panel_height=rect.height(),
+            global_x=global_x,
+            global_y=global_y,
+            panel_width=panel_w,
+            panel_height=panel_h,
         )
+        detail.raise_()
+        hwnd = int(detail.winId())
+        if hwnd:
+            raise_window_topmost(hwnd)
 
     def _on_top_item_entered(self, item: QListWidgetItem) -> None:
-        if self._category_panel_active():
-            return
         snippet_id = item.data(Qt.ItemDataRole.UserRole)
         snippet = snippet_repository.get_by_id(self._conn, snippet_id)
         if snippet is not None:
@@ -532,6 +549,10 @@ class PopupWindow(QWidget):
                     hwnd = int(self.winId())
                     if hwnd:
                         raise_window_topmost(hwnd)
+                    if self._flyout is not None and self._flyout.isVisible():
+                        fly_hwnd = int(self._flyout.winId())
+                        if fly_hwnd:
+                            raise_window_topmost(fly_hwnd)
 
         QTimer.singleShot(30, _paste_then_close)
 
