@@ -1,16 +1,31 @@
 # Changelog
 
-## [Unreleased] — 문서 v4
+## [0.2.3] — 2026-05-31 (프로젝트 마감)
+
+**QuickPaste Manager v0.2.3** 으로 **1차 개발을 마감**합니다. 이후 기능 업데이트 시 **메인(주) 버전 번호**를 올립니다.
+
+### 배포
+
+- 설치: [QuickPasteManager-Setup-0.2.3.exe](https://github.com/ChoSebastian/QuickPaste-Manager/releases/download/v0.2.3/QuickPasteManager-Setup-0.2.3.exe)
+- 포터블: [QuickPasteManager-0.2.3-portable.zip](https://github.com/ChoSebastian/QuickPaste-Manager/releases/download/v0.2.3/QuickPasteManager-0.2.3-portable.zip)
+- 샘플 Import: [HanbitSolutions_상용구샘플_200.zip](https://github.com/ChoSebastian/QuickPaste-Manager/releases/download/v0.2.3/HanbitSolutions_%EC%83%81%EC%9A%A9%EA%B5%AC%EC%83%98%ED%94%8C_200.zip) (설치본 미포함)
+
+### 제품
+
+- 카테고리 목록 우측 상세 패널, 목록은 ×로만 닫기(마우스 이탈 시 유지)
+- 붙여넣기 후 닫기 OFF 시 플라이아웃·상세 유지
+- 팝업 유지 모드: 다중 창 연속 붙여넣기(HWND 커서 추적)
+- Win+V 클립보드 히스토리 제외 (`ExcludeClipboardContentFromMonitorProcessing`)
 
 ### 문서
 
-- v4 문서 세트: 기획서·PRD·기능명세서·Cursor 착수본 (`docs/*_v4.md`)
-- `INDEX.md`, `architecture.md`, `README.md`, `AGENTS.md` v4 기준 갱신
+- v4 문서 세트 (`docs/*_v4.md`)
 
-### 제품 (이미 `main` 반영)
+### 마감 시점 미포함 (후속 검토)
 
-- 카테고리 목록 우측 상세 패널, 목록 × 닫기 전까지 유지
-- 팝업 유지 모드 다중 창 HWND 추적, Win+V 클립보드 히스토리 제외
+- Authenticode 코드 서명 (Smart App Control)
+- 마우스 휠/가운데 버튼 트리거 연동
+- 팝업 크기 환경설정 UI
 
 ---
 

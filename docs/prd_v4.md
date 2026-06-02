@@ -7,7 +7,7 @@
 | 제품명 | QuickPaste Manager |
 | 플랫폼 | Windows 10/11 (64-bit) |
 | 기술 스택 | Python 3.12+, PySide6 6.6+, SQLite3, pywin32, Pillow |
-| 앱 버전 | 0.2.2 |
+| 앱 버전 | 0.2.3 |
 
 ---
 

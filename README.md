@@ -6,8 +6,8 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 
 **저장소:** [github.com/ChoSebastian/QuickPaste-Manager](https://github.com/ChoSebastian/QuickPaste-Manager)
 
-> **안정 마감 릴리스: [v0.2.2](https://github.com/ChoSebastian/QuickPaste-Manager/releases/tag/v0.2.2)** (2026-06-01)  
-> 배포·이슈 수정은 v0.2.2 기준으로 종료합니다. 변경 이력은 [CHANGELOG.md](CHANGELOG.md).
+> **마감 릴리스: [v0.2.3](https://github.com/ChoSebastian/QuickPaste-Manager/releases/tag/v0.2.3)** (2026-05-31)  
+> 본 저장소 **1차 개발 마감**. 이후 업데이트 시 메인 버전을 올립니다. [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
@@ -101,7 +101,7 @@ python -m src.main
 ```powershell
 # 최초: winget install JRSoftware.InnoSetup  (또는 installer\build_installer.ps1 안내 참고)
 .\installer\build_installer.ps1
-# 산출물: dist\QuickPasteManager-Setup-0.2.2.exe
+# 산출물: dist\QuickPasteManager-Setup-0.2.3.exe
 ```
 
 포터블 실행만 필요하면 `.\scripts\build_release.ps1` → `dist\QuickPasteManager\`
@@ -213,14 +213,11 @@ git push origin main
 
 ---
 
-## v0.2.2 이후 (미정)
+## 프로젝트 마감 (v0.2.3)
 
-v0.2.2 마감 이후 검토 가능 항목:
+v0.2.3 배포로 **1차 개발을 종료**합니다. 후속 작업 시 **메인 버전**(예: 0.3.0)을 올리고 [CHANGELOG.md](CHANGELOG.md)에 기록합니다.
 
-1. 코드 서명·Smart App Control 대응 ([deploy.md](docs/deploy.md))
-2. 팝업 크기 환경설정 UI
-3. 마우스 트리거 연동 여부
-4. 대량 상용구 성능·호환성 테스트
+후속 검토만 남은 항목: 코드 서명([deploy.md](docs/deploy.md)), 팝업 크기 UI, 마우스 트리거 연동, 대량 데이터 성능.
 
 ---
 
