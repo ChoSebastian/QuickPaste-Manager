@@ -1,8 +1,8 @@
-# QuickPaste Manager — 아키텍처 (v3)
+# QuickPaste Manager — 아키텍처 (v4)
 
 | 항목 | 내용 |
 |------|------|
-| 문서 버전 | 3.0 |
+| 문서 버전 | 4.0 |
 | 작성일 | 2026-05-31 |
 
 ---
@@ -59,14 +59,20 @@
     → PopupWindow.show_near_cursor()
     → capture_foreground_window()  → _target_hwnd
 
+[Persist mode] QTimer 100ms → _sync_external_target_hwnd()
+    → cursor outside our HWNDs → capture_window_at_cursor()
+    → else → capture_foreground_window() (exclude popup/flyout/detail)
+
 User clicks snippet
+    → _sync_external_target_hwnd()
     → PasteService.paste_snippet(conn, snippet, target_hwnd)
+        → exclude_from_clipboard_history()
         → ClipboardService / win_clipboard (set content)
         → QTimer(paste_delay_ms)
         → input_injection.send_ctrl_v + restore foreground
         → usage_repository.insert
-    → if success && close_popup_after_paste: close popups
-    → else: keep popup, refresh topmost
+    → if success && close_popup_after_paste: close all popups
+    → else: keep main + category list + detail, topmost refresh
 ```
 
 ---
@@ -136,22 +142,33 @@ QLocalServer "QuickPasteManager"
 
 ---
 
-## 9. Phase 상태 (v3)
+## 9. 보조 창 구조 (v4)
 
-| Phase | 내용 | 상태 |
-|-------|------|------|
-| 1 | 트레이, AppData, 로그, 설정 | ✅ |
-| 2 | CRUD, assets | ✅ |
-| 3 | 팝업, 붙여넣기, Top5 | ✅ |
-| 4 | RegisterHotKey, capture UI | ✅ |
-| 5 | Import/Export, 백업 | ✅ |
-| 6 | 설치 패키지, 시작 프로그램, 도움말 | ✅ |
-| 7 | 마우스 트리거 연동 | ⬜ 보류 |
+```text
+[Main Popup]──+── SnippetDetailFlyout (Top5 hover)
+              │
+              └── SnippetFlyout (category list)
+                        └── SnippetDetailFlyout (category hover)
+```
+
+카테고리 목록은 마우스 이탈로 닫히지 않음(× 또는 메인 닫기 등). 상세만 list+detail 영역 이탈 시 reset.
 
 ---
 
-## 10. 관련 문서
+## 10. Phase 상태 (v4)
 
-- [기능명세서_v3.md](./기능명세서_v3.md)
-- [cursor_kickoff_v3.md](./cursor_kickoff_v3.md)
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| 1–6 | v3 Phase 1–6 | ✅ |
+| 7 | 팝업 유지·다중 HWND·Win+V 제외 | ✅ |
+| 8 | 카테고리 우측 상세·목록 × 닫기 | ✅ |
+| 9 | 마우스 트리거 연동 | ⬜ 보류 |
+| 10 | 코드 서명 | ⬜ deploy.md |
+
+---
+
+## 11. 관련 문서
+
+- [기능명세서_v4.md](./기능명세서_v4.md)
+- [cursor_kickoff_v4.md](./cursor_kickoff_v4.md)
 - [deploy.md](./deploy.md)

@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased] — 문서 v4
+
+### 문서
+
+- v4 문서 세트: 기획서·PRD·기능명세서·Cursor 착수본 (`docs/*_v4.md`)
+- `INDEX.md`, `architecture.md`, `README.md`, `AGENTS.md` v4 기준 갱신
+
+### 제품 (이미 `main` 반영)
+
+- 카테고리 목록 우측 상세 패널, 목록 × 닫기 전까지 유지
+- 팝업 유지 모드 다중 창 HWND 추적, Win+V 클립보드 히스토리 제외
+
+---
+
 ## [0.2.2] — 2026-06-01 (마감)
 
 **QuickPaste Manager v0.2.2** 를 본 저장소의 **안정 마감 릴리스**로 확정합니다.

@@ -19,12 +19,12 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 | 전역 단축키 | `RegisterHotKey` (기본 `Ctrl+Shift+Q`, 충돌 시 fallback) |
 | 메인 팝업 | 검색, Top 5, 카테고리, 커서 인접·최상위·드래그 이동 |
 | Top 5 | 2줄 축약 목록 → 오버 시 우측 **전체 내용** 패널 |
-| 카테고리 | **클릭** 시 우측 상용구 목록 → 오버 시 하단 **전체 내용** |
+| 카테고리 | **클릭** 시 우측 목록 → 오버 시 목록 **우측** 전체 내용 (×로 목록 닫기) |
 | 이미지 | 썸네일, 미리보기 **클릭 시 원본 열기**, 클립보드 붙여넣기 |
 | 관리창 | 카테고리·상용구 CRUD, 휴지통, 클립보드/파일 이미지 추가 |
 | 데이터 | 로컬 SQLite + `%APPDATA%\QuickPasteManager` |
 
-### 구현 상태 (v3)
+### 구현 상태 (v4)
 
 | 기능 | 상태 |
 |------|------|
@@ -33,6 +33,9 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 | 이미지 붙여넣기 | ✅ |
 | 붙여넣기 실패 시 팝업 유지 | ✅ |
 | 붙여넣기 후 팝업 닫기 (기본 **끔**) | ✅ |
+| 팝업 유지 모드 다중 창 붙여넣기 | ✅ |
+| Win+V 클립보드 히스토리 미축적 | ✅ |
+| 카테고리 목록 마우스 이탈 시 유지 | ✅ |
 | 이미지 미지원 대상 경고 (메모장·Edit 등) | ✅ |
 | 팝업 UI (목업 QSS, 보조 패널) | ✅ |
 | 관리창 CRUD·휴지통 | ✅ |
@@ -52,7 +55,7 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 1. `.\scripts\dev_run.ps1` 실행 → 트레이 아이콘 확인
 2. 작업 중인 앱에서 **단축키** (환경설정에서 변경 가능, 예: `Ctrl+Shift+Q`)
 3. **Top 5**: 항목에 마우스 오버 → 우측에서 내용 확인 → 항목 **클릭**으로 붙여넣기
-4. **카테고리**: 카테고리 **클릭** → 우측 목록 → 오버로 내용 확인 → 항목 **클릭**으로 붙여넣기
+4. **카테고리**: 카테고리 **클릭** → 우측 목록 → 오버 시 목록 **우측**에서 전체 내용 확인 → **클릭**으로 붙여넣기 (목록은 ×로 닫을 때까지 유지)
 5. **이미지 미리보기**: 이미지를 **클릭**하면 원본 파일이 열리며 팝업은 유지됨
 6. 상용구 등록·수정: 트레이 → **상용구 관리**
 
@@ -140,8 +143,8 @@ QuickPaste Manager/
 │  ├─ utils/
 │  └─ resources/              # icons, popup.qss
 ├─ tests/
-├─ docs/                      # v3 기획·PRD·명세·Cursor 착수본, UI 목업
-├─ doc/                       # v1 원본 + v3 착수 링크
+├─ docs/                      # v4 기획·PRD·명세·Cursor 착수본, UI 목업
+├─ doc/                       # v1 원본 + v4 착수 링크
 ├─ scripts/
 └─ installer/                 # PyInstaller spec, Inno Setup
 ```
@@ -193,20 +196,20 @@ git push origin main
 
 ## 문서
 
-### v3 (현행 구현 기준, 권장)
+### v4 (현행 구현 기준, 권장)
 
 - [문서 인덱스](docs/INDEX.md)
-- [기획서 v3](docs/기획서_v3.md)
-- [PRD v3](docs/prd_v3.md)
-- [기능명세서 v3](docs/기능명세서_v3.md)
-- [Cursor 착수본 v3](docs/cursor_kickoff_v3.md) — AI 재구현용
+- [기획서 v4](docs/기획서_v4.md)
+- [PRD v4](docs/prd_v4.md)
+- [기능명세서 v4](docs/기능명세서_v4.md)
+- [Cursor 착수본 v4](docs/cursor_kickoff_v4.md) — AI 재구현용
 
 ### 참고
 
 - [아키텍처](docs/architecture.md)
 - [UI 목업](docs/기본ui-1.png) · [플라이아웃](docs/기본ui-2.png)
 - [배포](docs/deploy.md) · [릴리스 체크리스트](docs/release-checklist.md)
-- v2 스냅샷: `docs/*_v2.md` · v1: [doc/README.md](doc/README.md)
+- v3/v2 스냅샷: `docs/*_v3.md`, `docs/*_v2.md` · v1: [doc/README.md](doc/README.md)
 
 ---
 

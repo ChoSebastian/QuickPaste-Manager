@@ -2,11 +2,11 @@
 
 **마감 버전: v0.2.2** (2026-06-01). 신규 기능 개발은 마감 범위 밖입니다.
 
-이 저장소를 수정·재구현할 때는 **v3 문서**를 기준으로 한다.
+이 저장소를 수정·재구현할 때는 **v4 문서**를 기준으로 한다.
 
-1. **착수:** [docs/cursor_kickoff_v3.md](docs/cursor_kickoff_v3.md)
-2. **요구사항:** [docs/prd_v3.md](docs/prd_v3.md)
-3. **화면·동작:** [docs/기능명세서_v3.md](docs/기능명세서_v3.md)
+1. **착수:** [docs/cursor_kickoff_v4.md](docs/cursor_kickoff_v4.md)
+2. **요구사항:** [docs/prd_v4.md](docs/prd_v4.md)
+3. **화면·동작:** [docs/기능명세서_v4.md](docs/기능명세서_v4.md)
 4. **인덱스:** [docs/INDEX.md](docs/INDEX.md)
 
 ## 핵심 상수 (코드와 동기화)
