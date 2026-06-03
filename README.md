@@ -79,7 +79,7 @@ Windows에서 자주 쓰는 **텍스트·이미지 상용구**를 저장하고, 
 > `winget install Python.Python.3.12` 또는 [python.org](https://www.python.org/downloads/)에서 설치하세요.
 
 ```powershell
-cd "D:\Smit_Dev\Python\QuickPaste Manager"
+cd "QuickPaste Manager"
 
 # 1) 부트스트랩 (Python 탐색 + venv + 의존성)
 .\scripts\bootstrap.ps1
